@@ -14,6 +14,7 @@ use GoldBot\Console\Tasks\CleanupTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Console\Tasks\ImportPriceSnapshotTask;
+use GoldBot\Console\Tasks\RunStrategyAnalysisTask;
 use GoldBot\Core\Database;
 use GoldBot\Core\Env;
 
@@ -103,6 +104,15 @@ return static function (Database $db): int {
             'cadence_minutes' => 1,
             'timeout_seconds' => 300,
             'sort_order'      => 30,
+        ],
+        [
+            'code'            => 'signals.analyse',
+            'name'            => 'Evaluate strategies',
+            'handler_class'   => RunStrategyAnalysisTask::class,
+            // No network: works from stored candles, indicators and calendar.
+            'cadence_minutes' => 1,
+            'timeout_seconds' => 300,
+            'sort_order'      => 35,
         ],
         [
             'code'            => 'calendar.import',

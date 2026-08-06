@@ -19,6 +19,7 @@ use GoldBot\Console\TaskDispatcher;
 use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
+use GoldBot\Console\Tasks\RunStrategyAnalysisTask;
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
 use GoldBot\Core\Container;
@@ -34,6 +35,11 @@ use GoldBot\Integrations\Calendar\Fred\FredProvider;
 use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataMapper;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
+use GoldBot\Domain\Session\SessionResolver;
+use GoldBot\Domain\Signal\SignalLifecycle;
+use GoldBot\Domain\Strategy\RuleEvaluator;
+use GoldBot\Domain\Strategy\Strategies\EmaCrossStrategy;
+use GoldBot\Domain\Strategy\Strategies\SevenFourteenStrategy;
 use GoldBot\Domain\Structure\LevelBuilder;
 use GoldBot\Domain\Structure\StructureAnalyser;
 use GoldBot\Domain\Structure\SwingDetector;
@@ -52,6 +58,16 @@ use GoldBot\Repositories\MySql\MySqlWatermarkRepository;
 use GoldBot\Services\MarketData\CandleIngestService;
 use GoldBot\Services\MarketData\IndicatorService;
 use GoldBot\Services\Calendar\CalendarService;
+use GoldBot\Services\Signals\Filters\CooldownFilter;
+use GoldBot\Services\Signals\Filters\DuplicateFilter;
+use GoldBot\Services\Signals\Filters\EnabledFilter;
+use GoldBot\Services\Signals\Filters\MaxOpenFilter;
+use GoldBot\Services\Signals\Filters\NewsFilter;
+use GoldBot\Services\Signals\Filters\SessionFilter;
+use GoldBot\Services\Signals\Filters\SignalFilterChain;
+use GoldBot\Services\Signals\Filters\SpreadFilter;
+use GoldBot\Services\Signals\SignalEngine;
+use GoldBot\Services\Signals\StrategyContextBuilder;
 use GoldBot\Services\Calendar\NewsBlackoutService;
 use GoldBot\Services\MarketData\StructureService;
 use GoldBot\Infrastructure\Cache\ApcuCache;
@@ -70,9 +86,13 @@ use GoldBot\Http\Middleware\RateLimit;
 use GoldBot\Infrastructure\Session\DatabaseSessionHandler;
 use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
+use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
+use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
 use GoldBot\Repositories\MySql\MySqlAuditRepository;
 use GoldBot\Repositories\MySql\MySqlSettingsRepository;
+use GoldBot\Repositories\MySql\MySqlSignalRepository;
+use GoldBot\Repositories\MySql\MySqlStrategyRepository;
 use GoldBot\Repositories\MySql\MySqlUserRepository;
 use GoldBot\Services\Auth\AuthService;
 use GoldBot\Support\Encryption;
@@ -345,6 +365,87 @@ return static function (Container $container, Config $config, Application $app):
         $c->get(LoggerInterface::class),
         $config->int('calendar.days_back', 7),
         $config->int('calendar.days_forward', 14)
+    ));
+
+    // ── Sessions ─────────────────────────────────────────────────────────────
+    // Built from the seeded rows so DST is applied by the timezone database
+    // rather than by arithmetic (docs/02 §4).
+    $container->singleton(SessionResolver::class, static function (Container $c): SessionResolver {
+        /** @var list<array{code:string,name:string,open_time:string,close_time:string,timezone:string}> $rows */
+        $rows = $c->get(Database::class)->select(
+            'SELECT code, name, open_time, close_time, timezone FROM market_sessions WHERE is_active = 1 ORDER BY id'
+        );
+
+        return SessionResolver::fromRows($rows);
+    });
+
+    // ── Strategies & signals ─────────────────────────────────────────────────
+    $container->singleton(RuleEvaluator::class, static fn (): RuleEvaluator => new RuleEvaluator());
+    $container->singleton(SignalLifecycle::class, static fn (): SignalLifecycle => new SignalLifecycle());
+
+    // Resolved by class name from strategies.handler_class, so registering a
+    // strategy is one row plus one binding.
+    $container->singleton(SevenFourteenStrategy::class, static fn (Container $c): SevenFourteenStrategy => new SevenFourteenStrategy(
+        $c->get(RuleEvaluator::class)
+    ));
+
+    $container->singleton(EmaCrossStrategy::class, static fn (Container $c): EmaCrossStrategy => new EmaCrossStrategy(
+        $c->get(RuleEvaluator::class)
+    ));
+
+    $container->singleton(
+        StrategyRepositoryInterface::class,
+        static fn (Container $c): StrategyRepositoryInterface => new MySqlStrategyRepository($c->get(Database::class))
+    );
+
+    $container->singleton(
+        SignalRepositoryInterface::class,
+        static fn (Container $c): SignalRepositoryInterface => new MySqlSignalRepository(
+            $c->get(Database::class),
+            $c->get(SignalLifecycle::class)
+        )
+    );
+
+    $container->singleton(StrategyContextBuilder::class, static fn (Container $c): StrategyContextBuilder => new StrategyContextBuilder(
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(IndicatorRepositoryInterface::class),
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(PriceSnapshotRepositoryInterface::class),
+        $c->get(StructureAnalyser::class),
+        $c->get(LevelBuilder::class),
+        $c->get(SessionResolver::class),
+        $c->get(NewsBlackoutService::class)
+    ));
+
+    // Order matters: the cheapest and most decisive checks run first, the
+    // portfolio caps last.
+    $container->singleton(SignalFilterChain::class, static fn (Container $c): SignalFilterChain => new SignalFilterChain([
+        new EnabledFilter($c->get(SettingsRepositoryInterface::class)),
+        new NewsFilter(),
+        new SessionFilter($c->get(SettingsRepositoryInterface::class)),
+        new SpreadFilter($c->get(SettingsRepositoryInterface::class)),
+        new DuplicateFilter($c->get(SignalRepositoryInterface::class)),
+        new CooldownFilter($c->get(SignalRepositoryInterface::class), $c->get(SettingsRepositoryInterface::class)),
+        new MaxOpenFilter($c->get(SignalRepositoryInterface::class), $c->get(SettingsRepositoryInterface::class)),
+    ]));
+
+    $container->singleton(SignalEngine::class, static fn (Container $c): SignalEngine => new SignalEngine(
+        $c,
+        $c->get(StrategyRepositoryInterface::class),
+        $c->get(SignalRepositoryInterface::class),
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(WatermarkRepositoryInterface::class),
+        $c->get(SettingsRepositoryInterface::class),
+        $c->get(StrategyContextBuilder::class),
+        $c->get(SignalFilterChain::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(RunStrategyAnalysisTask::class, static fn (Container $c): RunStrategyAnalysisTask => new RunStrategyAnalysisTask(
+        $c->get(SignalEngine::class),
+        $c->get(LoggerInterface::class)
     ));
 
     // ── Scheduler ────────────────────────────────────────────────────────────

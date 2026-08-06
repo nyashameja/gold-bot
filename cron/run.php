@@ -33,6 +33,7 @@ use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Infrastructure\Lock\LockInterface;
 use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
+use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
 use GoldBot\Services\MarketData\CandleIngestService;
 use GoldBot\Services\Auth\AuthService;
@@ -211,6 +212,95 @@ try {
             }
             break;
 
+        case 'strategy:list':
+            /** @var StrategyRepositoryInterface $strategies */
+            $strategies = $container->get(StrategyRepositoryInterface::class);
+            $db = $container->get(Database::class);
+
+            foreach ($db->select('SELECT id, code, name, is_enabled FROM strategies WHERE deleted_at IS NULL ORDER BY sort_order') as $row) {
+                $active = $strategies->activeConfig((int) $row['id']);
+
+                $out(sprintf(
+                    '  %-10s %-28s %-9s config v%-3s min_score=%s',
+                    $row['code'],
+                    $row['name'],
+                    $row['is_enabled'] ? 'enabled' : 'disabled',
+                    $active?->version ?? '-',
+                    $active === null ? '-' : (string) $active->int('min_score')
+                ));
+            }
+            break;
+
+        case 'strategy:config':
+            /** @var StrategyRepositoryInterface $strategies */
+            $strategies = $container->get(StrategyRepositoryInterface::class);
+
+            $code = $argv[2] ?? '';
+            $file = $argv[3] ?? '';
+
+            if ($code === '') {
+                $err('Usage: php cron/run.php strategy:config <code> [path/to/config.json]');
+                $err('Without a file, prints the active configuration.');
+                exit(1);
+            }
+
+            $strategy = $strategies->findByCode($code);
+
+            if ($strategy === null) {
+                $err(sprintf('Unknown strategy [%s]. Try: php cron/run.php strategy:list', $code));
+                exit(1);
+            }
+
+            if ($file === '') {
+                $active = $strategies->activeConfig($strategy['id']);
+
+                if ($active === null) {
+                    $err('No active configuration.');
+                    exit(1);
+                }
+
+                $out(sprintf('# %s config version %d', $strategy['code'], $active->version));
+                $out((string) json_encode($active->all(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                break;
+            }
+
+            if (!is_file($file)) {
+                $err(sprintf('File [%s] does not exist.', $file));
+                exit(1);
+            }
+
+            $decoded = json_decode((string) file_get_contents($file), true);
+
+            if (!is_array($decoded)) {
+                $err(sprintf('File [%s] is not valid JSON.', $file));
+                exit(1);
+            }
+
+            // Configs are immutable (ADR-06): this appends a new version and
+            // moves the active pointer, leaving every past signal attributable
+            // to what actually produced it.
+            $versionId = $strategies->addConfigVersion(
+                $strategy['id'],
+                $decoded,
+                sprintf('Imported from %s', basename($file))
+            );
+
+            $active = $strategies->configById($versionId);
+
+            $logger->info('Strategy config version added', [
+                'event'     => 'strategy.config_added',
+                'strategy'  => $strategy['code'],
+                'version'   => $active?->version,
+                'config_id' => $versionId,
+            ]);
+
+            $out(sprintf(
+                'Activated %s config version %d. Previous versions are retained.',
+                $strategy['code'],
+                $active?->version ?? 0
+            ));
+            break;
+
         case 'user:create':
             /** @var UserRepositoryInterface $users */
             $users = $container->get(UserRepositoryInterface::class);
@@ -384,6 +474,8 @@ try {
             $out('  schedule           Run all due scheduled tasks (the cPanel cron entry)');
             $out('  task <code>        Run one task now, ignoring its lock');
             $out('  market:backfill    Seed history: [symbol] [days]');
+            $out('  strategy:list      List strategies and their active config');
+            $out('  strategy:config    Show or replace a strategy config: <code> [file.json]');
             $out('  check              Verify configuration and wiring');
             $out('  key:generate       Print a new APP_KEY');
             $out('');

@@ -23,6 +23,7 @@ return static function (Database $db): int {
         ['signals.max_open', '3', 'int', 'signals', 'Maximum concurrent open signals', 'Signals beyond this are suppressed and recorded with a rejection reason.'],
         ['signals.expiry_minutes', '240', 'int', 'signals', 'Pending signal expiry', 'A pending signal whose entry is never touched expires after this many minutes.'],
         ['signals.cooldown_minutes', '60', 'int', 'signals', 'Cooldown between signals', 'Minimum gap between two signals on the same instrument and direction.'],
+        ['signals.sessions', '["LONDON","NEW_YORK"]', 'json', 'signals', 'Sessions signals may publish in', 'Gold is thin outside these hours — wider spreads and less reliable structure. Empty means no restriction.'],
 
         // Risk
         ['risk.default_rr', '2.0', 'float', 'risk', 'Default reward-to-risk ratio', 'Used to derive take-profit levels when a strategy does not specify them.'],
