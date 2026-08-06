@@ -32,6 +32,9 @@ return static function (Database $db): int {
         ['news.filter_enabled', '1', 'bool', 'news', 'Suppress signals around high-impact news', 'Applies the blackout windows configured per event category.'],
         ['news.blackout_before_minutes', '30', 'int', 'news', 'Default blackout before an event', 'Minutes before a high-impact event during which signals are suppressed.'],
         ['news.blackout_after_minutes', '30', 'int', 'news', 'Default blackout after an event', 'Minutes after a high-impact event during which signals are suppressed.'],
+        ['news.minimum_impact', 'HIGH', 'string', 'news', 'Minimum impact to blackout', 'Only events at or above this impact suppress signals. HOLIDAY always counts — thin liquidity is its own reason.'],
+        ['news.currencies', '["USD"]', 'json', 'news', 'Currencies that move gold', 'Releases in these currencies are considered. Gold is dollar-priced, so USD dominates.'],
+        ['news.approximate_padding_minutes', '240', 'int', 'news', 'Padding for approximate times', 'Events published without a precise time — "Tentative", or a FRED date-only release — are blacked out this far either side instead. A narrow window around a time nobody published is false confidence.'],
 
         // Telegram
         ['telegram.enabled', '0', 'bool', 'telegram', 'Telegram delivery enabled', 'Off until a bot token and at least one chat are configured.'],

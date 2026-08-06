@@ -1,0 +1,59 @@
+[
+  {
+    "title": "Non-Farm Employment Change",
+    "country": "USD",
+    "date": "2026-08-07T08:30:00-04:00",
+    "impact": "High",
+    "forecast": "175K",
+    "previous": "147K",
+    "url": "https://www.forexfactory.com/calendar#detail=141234"
+  },
+  {
+    "title": "Unemployment Rate",
+    "country": "USD",
+    "date": "2026-08-07T08:30:00-04:00",
+    "impact": "High",
+    "forecast": "4.2%",
+    "previous": "4.1%"
+  },
+  {
+    "title": "CPI m/m",
+    "country": "USD",
+    "date": "2026-08-12T08:30:00-04:00",
+    "impact": "High",
+    "forecast": "0.2%",
+    "previous": "0.3%"
+  },
+  {
+    "title": "German Bank Holiday",
+    "country": "EUR",
+    "date": "2026-08-10T00:00:00-04:00",
+    "impact": "Holiday",
+    "forecast": "",
+    "previous": ""
+  },
+  {
+    "title": "FOMC Member Bowman Speaks",
+    "country": "USD",
+    "date": "2026-08-11T00:00:00-04:00",
+    "impact": "Medium",
+    "forecast": "",
+    "previous": ""
+  },
+  {
+    "title": "Core Retail Sales m/m",
+    "country": "USD",
+    "date": "2026-08-13T08:30:00-04:00",
+    "impact": "Medium",
+    "forecast": "0.4%",
+    "previous": "0.5%"
+  },
+  {
+    "title": "Flash Manufacturing PMI",
+    "country": "GBP",
+    "date": "2026-08-13T04:30:00-04:00",
+    "impact": "Low",
+    "forecast": "51.2",
+    "previous": "50.9"
+  }
+]

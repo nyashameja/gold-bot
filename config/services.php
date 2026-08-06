@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 use GoldBot\Console\TaskDispatcher;
 use GoldBot\Console\Tasks\CalculateIndicatorsTask;
+use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
@@ -25,6 +26,11 @@ use GoldBot\Core\Database;
 use GoldBot\Core\Env;
 use GoldBot\Infrastructure\Http\ApiBudget;
 use GoldBot\Infrastructure\Http\HttpClient;
+use GoldBot\Integrations\Calendar\CompositeCalendarProvider;
+use GoldBot\Integrations\Calendar\EventIdentityHasher;
+use GoldBot\Integrations\Calendar\ForexFactory\ForexFactoryMapper;
+use GoldBot\Integrations\Calendar\ForexFactory\ForexFactoryProvider;
+use GoldBot\Integrations\Calendar\Fred\FredProvider;
 use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataMapper;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
@@ -32,17 +38,21 @@ use GoldBot\Domain\Structure\LevelBuilder;
 use GoldBot\Domain\Structure\StructureAnalyser;
 use GoldBot\Domain\Structure\SwingDetector;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
+use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
 use GoldBot\Repositories\Contracts\IndicatorRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
 use GoldBot\Repositories\MySql\MySqlCandleRepository;
+use GoldBot\Repositories\MySql\MySqlEconomicEventRepository;
 use GoldBot\Repositories\MySql\MySqlIndicatorRepository;
 use GoldBot\Repositories\MySql\MySqlMarketReferenceRepository;
 use GoldBot\Repositories\MySql\MySqlPriceSnapshotRepository;
 use GoldBot\Repositories\MySql\MySqlWatermarkRepository;
 use GoldBot\Services\MarketData\CandleIngestService;
 use GoldBot\Services\MarketData\IndicatorService;
+use GoldBot\Services\Calendar\CalendarService;
+use GoldBot\Services\Calendar\NewsBlackoutService;
 use GoldBot\Services\MarketData\StructureService;
 use GoldBot\Infrastructure\Cache\ApcuCache;
 use GoldBot\Infrastructure\Cache\CacheInterface;
@@ -271,6 +281,70 @@ return static function (Container $container, Config $config, Application $app):
         $c->get(StructureAnalyser::class),
         $c->get(LevelBuilder::class),
         $c->get(LoggerInterface::class)
+    ));
+
+    // ── Economic calendar (ADR-12) ───────────────────────────────────────────
+    // Two free adapters behind one port. ForexFactory carries the consensus
+    // forecast; FRED is authoritative but time-imprecise. Swapping either — or
+    // adding Trading Economics if a subscription is ever bought — is a change
+    // to this block and nothing else.
+    $container->singleton(EventIdentityHasher::class, static fn (): EventIdentityHasher => new EventIdentityHasher());
+
+    $container->singleton(ForexFactoryMapper::class, static fn (Container $c): ForexFactoryMapper => new ForexFactoryMapper(
+        $c->get(EventIdentityHasher::class)
+    ));
+
+    $container->singleton(ForexFactoryProvider::class, static fn (Container $c): ForexFactoryProvider => new ForexFactoryProvider(
+        $c->get(HttpClient::class),
+        $c->get(ForexFactoryMapper::class),
+        $c->get(ApiBudget::class),
+        $c->get(LoggerInterface::class),
+        Env::string('FOREX_FACTORY_BASE_URL', 'https://nfs.faireconomy.media'),
+        Env::bool('FOREX_FACTORY_ENABLED', true)
+    ));
+
+    $container->singleton(FredProvider::class, static fn (Container $c): FredProvider => new FredProvider(
+        $c->get(HttpClient::class),
+        $c->get(EventIdentityHasher::class),
+        $c->get(ApiBudget::class),
+        $c->get(LoggerInterface::class),
+        Env::string('FRED_API_KEY'),
+        Env::string('FRED_BASE_URL', 'https://api.stlouisfed.org/fred'),
+        Env::bool('FRED_ENABLED', true)
+    ));
+
+    $container->singleton(CompositeCalendarProvider::class, static fn (Container $c): CompositeCalendarProvider => new CompositeCalendarProvider(
+        [$c->get(ForexFactoryProvider::class), $c->get(FredProvider::class)],
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(
+        EconomicEventRepositoryInterface::class,
+        static fn (Container $c): EconomicEventRepositoryInterface => new MySqlEconomicEventRepository(
+            $c->get(Database::class)
+        )
+    );
+
+    $container->singleton(CalendarService::class, static fn (Container $c): CalendarService => new CalendarService(
+        $c->get(CompositeCalendarProvider::class),
+        $c->get(EconomicEventRepositoryInterface::class),
+        $c->get(EventIdentityHasher::class),
+        $c->get(Database::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(NewsBlackoutService::class, static fn (Container $c): NewsBlackoutService => new NewsBlackoutService(
+        $c->get(EconomicEventRepositoryInterface::class),
+        $c->get(SettingsRepositoryInterface::class),
+        $c->get(Database::class)
+    ));
+
+    $container->singleton(ImportCalendarTask::class, static fn (Container $c): ImportCalendarTask => new ImportCalendarTask(
+        $c->get(CalendarService::class),
+        $c->get(LoggerInterface::class),
+        $config->int('calendar.days_back', 7),
+        $config->int('calendar.days_forward', 14)
     ));
 
     // ── Scheduler ────────────────────────────────────────────────────────────

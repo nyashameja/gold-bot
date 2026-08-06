@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\CleanupTask;
+use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Console\Tasks\ImportPriceSnapshotTask;
 use GoldBot\Core\Database;
@@ -102,6 +103,17 @@ return static function (Database $db): int {
             'cadence_minutes' => 1,
             'timeout_seconds' => 300,
             'sort_order'      => 30,
+        ],
+        [
+            'code'            => 'calendar.import',
+            'name'            => 'Import economic calendar',
+            'handler_class'   => ImportCalendarTask::class,
+            // The upstream feed is a rolling window, so a missed poll is
+            // history permanently lost (ADR-15). Every 30 minutes is ample for
+            // revisions while keeping the archive continuous.
+            'cadence_minutes' => 30,
+            'timeout_seconds' => 120,
+            'sort_order'      => 40,
         ],
         [
             'code'            => 'system.cleanup',
