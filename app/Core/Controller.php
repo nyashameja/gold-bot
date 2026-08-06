@@ -24,9 +24,13 @@ abstract class Controller
     /** @param array<string,mixed> $data */
     protected function render(string $template, array $data = [], ?string $layout = 'layouts/app'): Response
     {
+        // currentPath is deliberately NOT defaulted here. ShareViewData has
+        // already shared the real request path; passing a null through $data
+        // overwrote it, and the layout's `$currentPath ?? '/'` then fell back
+        // to the root — which silently left every page's sidebar highlighting
+        // Overview.
         return $this->view->render($template, [
-            'user'        => $this->auth->user(),
-            'currentPath' => $data['currentPath'] ?? null,
+            'user' => $this->auth->user(),
             ...$data,
         ], $layout);
     }

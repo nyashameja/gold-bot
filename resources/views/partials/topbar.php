@@ -24,13 +24,16 @@
     </h1>
 
     <!--
-      Market status. Static in Phase 2 — it is wired to price_snapshots in
-      Phase 8, and will carry a data-age indicator so a stale price is never
-      shown as current (docs/01 §8).
+      Live market status. Polls /api/overview and shows the last price beside
+      its age, so a stale quote is never presented as current (docs/01 §8).
+      On a failed poll it degrades to "—" rather than disappearing: a widget
+      that vanishes on error looks exactly like one that was never there.
     -->
-    <div class="hidden items-center gap-2 rounded-full border border-base-700 bg-base-850
+    <div x-data="marketStatus" x-init="start"
+         class="hidden items-center gap-2 rounded-full border border-base-700 bg-base-850
                 px-3 py-1.5 sm:flex">
-        <span class="dot bg-ink-500" aria-hidden="true"></span>
-        <span class="text-xs text-ink-400">Awaiting market data</span>
+        <span class="dot" :class="dotClass" aria-hidden="true"></span>
+        <span class="num text-xs text-ink-200" x-text="price">—</span>
+        <span class="text-xs text-ink-500" x-text="age">loading</span>
     </div>
 </header>

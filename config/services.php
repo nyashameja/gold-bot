@@ -51,13 +51,30 @@ use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
 use GoldBot\Repositories\Contracts\IndicatorRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
+use GoldBot\Repositories\Contracts\MarketStructureRepositoryInterface;
+use GoldBot\Repositories\Contracts\OperationsRepositoryInterface;
+use GoldBot\Repositories\Contracts\PerformanceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
 use GoldBot\Repositories\MySql\MySqlCandleRepository;
 use GoldBot\Repositories\MySql\MySqlEconomicEventRepository;
 use GoldBot\Repositories\MySql\MySqlIndicatorRepository;
 use GoldBot\Repositories\MySql\MySqlMarketReferenceRepository;
+use GoldBot\Repositories\MySql\MySqlMarketStructureRepository;
+use GoldBot\Repositories\MySql\MySqlOperationsRepository;
+use GoldBot\Repositories\MySql\MySqlPerformanceRepository;
 use GoldBot\Repositories\MySql\MySqlPriceSnapshotRepository;
+use GoldBot\Services\Dashboard\ApiUsageService;
+use GoldBot\Services\Dashboard\CalendarBoardService;
+use GoldBot\Services\Dashboard\HealthService;
+use GoldBot\Services\Dashboard\MarketBoardService;
+use GoldBot\Services\Dashboard\MethodService;
+use GoldBot\Services\Dashboard\OverviewService;
+use GoldBot\Services\Dashboard\PerformanceService;
+use GoldBot\Services\Dashboard\SettingsAdminService;
+use GoldBot\Services\Dashboard\SignalBoardService;
+use GoldBot\Services\Dashboard\TelegramBoardService;
+use GoldBot\Services\Dashboard\UserAdminService;
 use GoldBot\Repositories\MySql\MySqlWatermarkRepository;
 use GoldBot\Services\MarketData\CandleIngestService;
 use GoldBot\Services\MarketData\IndicatorService;
@@ -535,6 +552,111 @@ return static function (Container $container, Config $config, Application $app):
         $c->get(ClockInterface::class),
         $c->get(LoggerInterface::class),
         $config->array('market.fetch.settle_seconds', [])
+    ));
+
+    // ── Dashboard read side (Phase 8) ────────────────────────────────────────
+    // Read-only repositories, separate from the writers on the cron hot path.
+    $container->singleton(
+        OperationsRepositoryInterface::class,
+        static fn (Container $c): OperationsRepositoryInterface => new MySqlOperationsRepository($c->get(Database::class))
+    );
+
+    $container->singleton(
+        PerformanceRepositoryInterface::class,
+        static fn (Container $c): PerformanceRepositoryInterface => new MySqlPerformanceRepository($c->get(Database::class))
+    );
+
+    $container->singleton(
+        MarketStructureRepositoryInterface::class,
+        static fn (Container $c): MarketStructureRepositoryInterface => new MySqlMarketStructureRepository(
+            $c->get(Database::class)
+        )
+    );
+
+    $container->singleton(MarketBoardService::class, static fn (Container $c): MarketBoardService => new MarketBoardService(
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(PriceSnapshotRepositoryInterface::class),
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(IndicatorRepositoryInterface::class),
+        $c->get(MarketStructureRepositoryInterface::class),
+        $c->get(SignalRepositoryInterface::class),
+        $c->get(StructureService::class),
+        $c->get(SessionResolver::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(SignalBoardService::class, static fn (Container $c): SignalBoardService => new SignalBoardService(
+        $c->get(SignalRepositoryInterface::class),
+        $c->get(StrategyRepositoryInterface::class),
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(PriceSnapshotRepositoryInterface::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(PerformanceService::class, static fn (Container $c): PerformanceService => new PerformanceService(
+        $c->get(PerformanceRepositoryInterface::class),
+        $c->get(StrategyRepositoryInterface::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(MethodService::class, static fn (Container $c): MethodService => new MethodService(
+        $c->get(StrategyRepositoryInterface::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(CalendarBoardService::class, static fn (Container $c): CalendarBoardService => new CalendarBoardService(
+        $c->get(EconomicEventRepositoryInterface::class),
+        $c->get(NewsBlackoutService::class),
+        $c->get(CalendarService::class),
+        $c->get(SettingsRepositoryInterface::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(TelegramBoardService::class, static fn (Container $c): TelegramBoardService => new TelegramBoardService(
+        $c->get(TelegramRepositoryInterface::class),
+        $c->get(TelegramClientInterface::class),
+        $c->get(Database::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(ApiUsageService::class, static fn (Container $c): ApiUsageService => new ApiUsageService(
+        $c->get(OperationsRepositoryInterface::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(HealthService::class, static fn (Container $c): HealthService => new HealthService(
+        $c->get(Database::class),
+        $c->get(OperationsRepositoryInterface::class),
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(PriceSnapshotRepositoryInterface::class),
+        $c->get(ApiUsageService::class),
+        $c->get(TelegramBoardService::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(OverviewService::class, static fn (Container $c): OverviewService => new OverviewService(
+        $c->get(MarketBoardService::class),
+        $c->get(SignalBoardService::class),
+        $c->get(PerformanceService::class),
+        $c->get(CalendarBoardService::class),
+        $c->get(TelegramBoardService::class),
+        $c->get(ApiUsageService::class),
+        $c->get(HealthService::class),
+        $c->get(SignalRepositoryInterface::class),
+        $c->get(ClockInterface::class)
+    ));
+
+    $container->singleton(SettingsAdminService::class, static fn (Container $c): SettingsAdminService => new SettingsAdminService(
+        $c->get(SettingsRepositoryInterface::class),
+        $c->get(AuditRepositoryInterface::class)
+    ));
+
+    $container->singleton(UserAdminService::class, static fn (Container $c): UserAdminService => new UserAdminService(
+        $c->get(UserRepositoryInterface::class),
+        $c->get(AuthService::class),
+        $c->get(AuditRepositoryInterface::class),
+        $c->get(Database::class)
     ));
 
     // ── Router ───────────────────────────────────────────────────────────────

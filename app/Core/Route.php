@@ -64,37 +64,83 @@ final class Route
         return $this->parameters;
     }
 
-    /** @param array<string,string|int> $parameters */
+    /**
+     * Fill a pattern back in, for link generation.
+     *
+     * The constraint matcher allows one level of nested braces for the same
+     * reason compile() does: `{uuid:[0-9a-f-]{36}}` otherwise loses only its
+     * final brace, producing a URL like `/signals/abc}/cancel` — a link that
+     * looks nearly right and 404s.
+     *
+     * @param array<string,string|int> $parameters
+     */
     public function url(array $parameters = []): string
     {
         $url = $this->pattern;
 
         foreach ($parameters as $key => $value) {
-            $url = preg_replace('/\{' . preg_quote((string) $key, '/') . '(:[^}]+)?\}/', (string) $value, $url) ?? $url;
+            $pattern = '/\{' . preg_quote((string) $key, '/') . '(?::(?:[^{}]|\{[^{}]*\})+)?\}/';
+            $url = preg_replace($pattern, (string) $value, $url) ?? $url;
         }
 
         return $url;
     }
 
+    /**
+     * Compile a pattern into a matching regex.
+     *
+     * The literal segments are quoted INDIVIDUALLY and the placeholders are
+     * emitted untouched. Quoting the whole pattern first and substituting
+     * afterwards does not work — preg_quote escapes the placeholder's own
+     * braces, so `{uuid}` becomes `\{uuid\}`, the substitution no longer
+     * matches it, and the route silently matches nothing. Silently, because a
+     * route that never matches produces a 404 rather than an error, which
+     * looks exactly like a missing record.
+     */
     private function compile(string $pattern): string
     {
         $this->parameterNames = [];
 
-        $regex = preg_replace_callback(
-            '/\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([^}]+))?\}/',
-            function (array $m): string {
-                $this->parameterNames[] = $m[1];
+        // The constraint may itself contain braces — `{uuid:[0-9a-f-]{36}}` is
+        // the obvious case. A naive `[^}]+` stops at the first closing brace
+        // and truncates the quantifier, so one level of nesting is matched
+        // explicitly. That covers every quantifier form; genuinely recursive
+        // constraints are not a thing anyone should be writing in a route.
+        $placeholder = '/\{([a-zA-Z_][a-zA-Z0-9_]*)(?::((?:[^{}]|\{[^{}]*\})+))?\}/';
 
-                return '(?P<' . $m[1] . '>' . ($m[2] ?? '[^/]+') . ')';
-            },
-            // Escape everything else first so a literal dot in a path cannot
-            // act as a wildcard.
-            preg_quote($pattern, '#')
+        $segments = preg_split(
+            $placeholder,
+            $pattern,
+            -1,
+            PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY
         );
 
-        // preg_quote escaped the placeholder braces; undo that for the parts
-        // the callback did not consume.
-        $regex = str_replace(['\{', '\}'], ['{', '}'], (string) $regex);
+        preg_match_all($placeholder, $pattern, $matches, PREG_SET_ORDER);
+
+        $regex = '';
+        $remaining = $pattern;
+
+        foreach ($matches as $match) {
+            $position = strpos($remaining, $match[0]);
+
+            if ($position === false) {
+                continue;
+            }
+
+            // Everything before this placeholder is a literal: quoted, so a
+            // dot in a path cannot act as a wildcard.
+            $regex .= preg_quote(substr($remaining, 0, $position), '#');
+
+            $name = $match[1];
+            $constraint = ($match[2] ?? '') !== '' ? $match[2] : '[^/]+';
+
+            $this->parameterNames[] = $name;
+            $regex .= '(?P<' . $name . '>' . $constraint . ')';
+
+            $remaining = substr($remaining, $position + strlen($match[0]));
+        }
+
+        $regex .= preg_quote($remaining, '#');
 
         return '#^' . $regex . '$#';
     }

@@ -32,6 +32,23 @@ enum SignalEventType: string
         };
     }
 
+    /** Human wording for the timeline on the signal detail page. */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Generated        => 'Signal generated',
+            self::Sent             => 'Sent to Telegram',
+            self::EntryActivated   => 'Entry filled',
+            self::Tp1Hit           => 'Target 1 hit',
+            self::Tp2Hit           => 'Target 2 hit',
+            self::Tp3Hit           => 'Target 3 hit',
+            self::MovedToBreakeven => 'Stop moved to entry',
+            self::StopLossHit      => 'Stop loss hit',
+            self::Cancelled        => 'Cancelled',
+            self::Expired          => 'Expired unfilled',
+        };
+    }
+
     /** Whether this transition ends the signal's life. */
     public function isTerminal(): bool
     {

@@ -30,7 +30,7 @@ $tone = static fn (string $action): string => match (true) {
     <div class="card overflow-hidden">
         <!-- The table scrolls inside its own container so the page body never
              scrolls horizontally on a phone. -->
-        <div class="overflow-x-auto">
+        <div class="table-scroll">
             <table class="w-full min-w-[640px] text-left text-sm">
                 <thead>
                     <tr class="border-b border-base-750 text-xs uppercase tracking-wider text-ink-500">

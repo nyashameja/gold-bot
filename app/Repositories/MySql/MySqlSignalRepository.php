@@ -286,6 +286,32 @@ final class MySqlSignalRepository implements \GoldBot\Repositories\Contracts\Sig
         );
     }
 
+    public function targetsFor(array $signalIds): array
+    {
+        if ($signalIds === []) {
+            return [];
+        }
+
+        $ids = array_values(array_unique(array_map('intval', $signalIds)));
+        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+
+        $rows = $this->database->select(
+            "SELECT signal_id, level, price, close_percent, r_multiple, hit_at, hit_price
+             FROM signal_targets WHERE signal_id IN ({$placeholders}) ORDER BY signal_id, level",
+            $ids
+        );
+
+        // Pre-seed every requested id so a caller can index the result without
+        // first checking whether the key exists.
+        $grouped = array_fill_keys($ids, []);
+
+        foreach ($rows as $row) {
+            $grouped[(int) $row['signal_id']][] = $row;
+        }
+
+        return $grouped;
+    }
+
     public function scores(int $signalId): array
     {
         return $this->database->select(
@@ -293,6 +319,86 @@ final class MySqlSignalRepository implements \GoldBot\Repositories\Contracts\Sig
              FROM signal_scores WHERE signal_id = ? ORDER BY id',
             [$signalId]
         );
+    }
+
+    public function paginate(array $filters, int $limit, int $offset): array
+    {
+        [$where, $bindings] = $this->filterScope($filters);
+
+        return array_map(
+            fn (array $row): array => (array) $this->decorate($row),
+            $this->database->select(
+                "SELECT s.*, st.code AS strategy_code, st.name AS strategy_name, tf.code AS timeframe_code
+                 FROM signals s
+                 JOIN strategies st ON st.id = s.strategy_id
+                 JOIN timeframes tf ON tf.id = s.timeframe_id
+                 {$where}
+                 ORDER BY s.generated_at DESC, s.id DESC
+                 LIMIT ? OFFSET ?",
+                [...$bindings, max(1, min($limit, 200)), max(0, $offset)]
+            )
+        );
+    }
+
+    public function countMatching(array $filters): int
+    {
+        [$where, $bindings] = $this->filterScope($filters);
+
+        return (int) $this->database->scalar(
+            "SELECT COUNT(*) FROM signals s {$where}",
+            $bindings
+        );
+    }
+
+    /**
+     * Translate the filter array into SQL.
+     *
+     * Only the keys below are recognised; anything else in the array is
+     * dropped. No value from a request ever reaches the query as a fragment —
+     * every column name here is a literal in this file (docs/01 §10).
+     *
+     * @param array<string,mixed> $filters
+     * @return array{0:string,1:list<mixed>}
+     */
+    private function filterScope(array $filters): array
+    {
+        $clauses = [];
+        $bindings = [];
+
+        $columns = [
+            'state'         => 's.state',
+            'direction'     => 's.direction',
+            'strategy_id'   => 's.strategy_id',
+            'timeframe_id'  => 's.timeframe_id',
+            'instrument_id' => 's.instrument_id',
+        ];
+
+        foreach ($columns as $key => $column) {
+            if (($filters[$key] ?? null) === null || $filters[$key] === '') {
+                continue;
+            }
+
+            $clauses[] = "{$column} = ?";
+            $bindings[] = $filters[$key];
+        }
+
+        if (($filters['since'] ?? null) instanceof DateTimeImmutable) {
+            $clauses[] = 's.generated_at >= ?';
+            $bindings[] = $filters['since']->format('Y-m-d H:i:s');
+        }
+
+        if (($filters['until'] ?? null) instanceof DateTimeImmutable) {
+            $clauses[] = 's.generated_at < ?';
+            $bindings[] = $filters['until']->format('Y-m-d H:i:s');
+        }
+
+        // A bucket the UI needs that the state column cannot express in one
+        // equality: "anything still capable of changing".
+        if (($filters['open_only'] ?? false) === true) {
+            $clauses[] = "s.state IN ('PENDING', 'ACTIVE', 'BREAKEVEN')";
+        }
+
+        return [$clauses === [] ? '' : 'WHERE ' . implode(' AND ', $clauses), $bindings];
     }
 
     public function markTargetHit(int $signalId, int $level, DateTimeImmutable $at, float $price): void

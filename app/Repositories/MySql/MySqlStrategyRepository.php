@@ -15,22 +15,39 @@ final class MySqlStrategyRepository implements StrategyRepositoryInterface
     {
     }
 
+    public function all(): array
+    {
+        // Includes disabled strategies. The engine must never run them, but the
+        // 714 Method page must still be able to show one — a strategy that
+        // becomes invisible the moment it is switched off cannot be reviewed
+        // before being switched back on.
+        return array_map(
+            $this->castStrategy(...),
+            $this->database->select(
+                'SELECT id, code, name, description, class_name, is_enabled FROM strategies
+                 WHERE deleted_at IS NULL
+                 ORDER BY sort_order, id'
+            )
+        );
+    }
+
     public function enabled(): array
     {
-        /** @var list<array{id:int,code:string,name:string,class_name:string}> $rows */
-        $rows = $this->database->select(
-            'SELECT id, code, name, class_name FROM strategies
-             WHERE is_enabled = 1 AND deleted_at IS NULL
-             ORDER BY sort_order, id'
+        return array_map(
+            $this->castStrategy(...),
+            $this->database->select(
+                'SELECT id, code, name, description, class_name, is_enabled FROM strategies
+                 WHERE is_enabled = 1 AND deleted_at IS NULL
+                 ORDER BY sort_order, id'
+            )
         );
-
-        return array_map($this->castStrategy(...), $rows);
     }
 
     public function findByCode(string $code): ?array
     {
         $row = $this->database->selectOne(
-            'SELECT id, code, name, class_name FROM strategies WHERE code = ? AND deleted_at IS NULL',
+            'SELECT id, code, name, description, class_name, is_enabled FROM strategies
+             WHERE code = ? AND deleted_at IS NULL',
             [$code]
         );
 
@@ -192,10 +209,12 @@ final class MySqlStrategyRepository implements StrategyRepositoryInterface
     private function castStrategy(array $row): array
     {
         return [
-            'id'         => (int) $row['id'],
-            'code'       => (string) $row['code'],
-            'name'       => (string) $row['name'],
-            'class_name' => (string) $row['class_name'],
+            'id'          => (int) $row['id'],
+            'code'        => (string) $row['code'],
+            'name'        => (string) $row['name'],
+            'description' => $row['description'] === null ? null : (string) $row['description'],
+            'class_name'  => (string) $row['class_name'],
+            'is_enabled'  => (int) ($row['is_enabled'] ?? 0),
         ];
     }
 

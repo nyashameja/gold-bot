@@ -5,13 +5,14 @@
     "scripts": {
         "build": "tailwindcss -i resources/css/app.css -o public/assets/css/app.css --minify && npm run build:js",
         "watch": "tailwindcss -i resources/css/app.css -o public/assets/css/app.css --watch",
-        "build:js": "cp node_modules/@alpinejs/csp/dist/cdn.min.js public/assets/js/alpine-csp.min.js && cp resources/js/app.js public/assets/js/app.js"
+        "build:js": "cp node_modules/@alpinejs/csp/dist/cdn.min.js public/assets/js/alpine-csp.min.js && cp node_modules/chart.js/dist/chart.umd.min.js public/assets/js/chart.min.js && cp resources/js/app.js public/assets/js/app.js"
     },
     "devDependencies": {
         "@tailwindcss/cli": "^4.1.0",
         "tailwindcss": "^4.1.0"
     },
     "dependencies": {
-        "@alpinejs/csp": "^3.15.12"
+        "@alpinejs/csp": "^3.15.12",
+        "chart.js": "^4.5.0"
     }
 }

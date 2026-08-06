@@ -40,7 +40,7 @@ final class MySqlMarketReferenceRepository implements MarketReferenceRepositoryI
     public function activeInstruments(): array
     {
         $rows = $this->database->select(
-            'SELECT id, symbol, provider_symbol, price_precision
+            'SELECT id, symbol, provider_symbol, name, price_precision, pip_size
              FROM instruments
              WHERE is_active = 1 AND deleted_at IS NULL
              ORDER BY symbol'
@@ -78,7 +78,7 @@ final class MySqlMarketReferenceRepository implements MarketReferenceRepositoryI
     private function fetchInstrument(string $where, array $bindings): ?array
     {
         $row = $this->database->selectOne(
-            "SELECT id, symbol, provider_symbol, price_precision
+            "SELECT id, symbol, provider_symbol, name, price_precision, pip_size
              FROM instruments
              WHERE {$where} AND deleted_at IS NULL",
             $bindings
@@ -100,7 +100,7 @@ final class MySqlMarketReferenceRepository implements MarketReferenceRepositoryI
 
     /**
      * @param array<string,mixed> $row
-     * @return array{id:int,symbol:string,provider_symbol:string,price_precision:int}
+     * @return array{id:int,symbol:string,provider_symbol:string,name:string,price_precision:int,pip_size:float}
      */
     private function castInstrument(array $row): array
     {
@@ -108,7 +108,11 @@ final class MySqlMarketReferenceRepository implements MarketReferenceRepositoryI
             'id'              => (int) $row['id'],
             'symbol'          => (string) $row['symbol'],
             'provider_symbol' => (string) $row['provider_symbol'],
+            // Carried for the dashboard, which has to label the instrument
+            // with something a human recognises rather than a ticker.
+            'name'            => (string) $row['name'],
             'price_precision' => (int) $row['price_precision'],
+            'pip_size'        => (float) $row['pip_size'],
         ];
     }
 }

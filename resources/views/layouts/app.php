@@ -54,7 +54,16 @@ $title = $title ?? 'Dashboard';
     </div>
 </div>
 
-<!-- app.js registers the components before Alpine boots; both are deferred,
+<!--
+  Chart.js loads only on the three pages that draw charts. It is ~200KB, and
+  shipping it everywhere would be paid on every mobile page load by readers who
+  never see a canvas. It must precede app.js, which sets Chart defaults.
+-->
+<?php if (!empty($charts)): ?>
+    <script src="/assets/js/chart.min.js" defer></script>
+<?php endif; ?>
+
+<!-- app.js registers the components before Alpine boots; all are deferred,
      so they execute in document order. -->
 <script src="/assets/js/app.js" defer></script>
 <script src="/assets/js/alpine-csp.min.js" defer></script>

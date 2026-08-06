@@ -96,6 +96,11 @@ final class SignalLifecycleTrackingTest extends IntegrationTestCase
 
         $this->clear();
 
+        // Park any chat this deployment already has, so the message counts
+        // below measure the outbox rather than however many channels happen
+        // to be configured. See the same guard in TelegramOutboxTest.
+        $this->db->run('UPDATE telegram_chats SET is_active = 0 WHERE chat_id <> ?', [self::CHAT]);
+
         $this->db->insert('telegram_chats', [
             'chat_id'          => self::CHAT,
             'type'             => 'channel',
@@ -152,6 +157,7 @@ final class SignalLifecycleTrackingTest extends IntegrationTestCase
     {
         $this->db->run('DELETE FROM telegram_messages');
         $this->db->run('DELETE FROM telegram_chats WHERE chat_id = ?', [self::CHAT]);
+        $this->db->run('UPDATE telegram_chats SET is_active = 1 WHERE chat_id <> ?', [self::CHAT]);
         $this->db->run('DELETE FROM signals');
         $this->db->run('DELETE FROM candles WHERE instrument_id = ?', [$this->instrumentId]);
     }

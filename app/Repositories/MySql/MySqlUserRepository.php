@@ -140,6 +140,26 @@ final class MySqlUserRepository implements UserRepositoryInterface
         return array_map(fn (array $row): User => $this->hydrate($row), $rows);
     }
 
+    public function listing(bool $includeInactive = true): array
+    {
+        // GROUP_CONCAT rather than hydrate() in a loop. all() builds a full
+        // User per row, and each one costs two further queries for its roles
+        // and permissions — right for one user, an N+1 on a list page. The
+        // permission set is not needed to render the table at all.
+        return $this->database->select(
+            'SELECT u.id, u.uuid, u.email, u.name, u.is_active, u.timezone,
+                    u.last_login_at, u.created_at,
+                    GROUP_CONCAT(r.slug ORDER BY r.id) AS roles
+             FROM users u
+             LEFT JOIN user_roles ur ON ur.user_id = u.id
+             LEFT JOIN roles r ON r.id = ur.role_id
+             WHERE u.deleted_at IS NULL' . ($includeInactive ? '' : ' AND u.is_active = 1') . '
+             GROUP BY u.id, u.uuid, u.email, u.name, u.is_active, u.timezone,
+                      u.last_login_at, u.created_at
+             ORDER BY u.name'
+        );
+    }
+
     public function emailExists(string $email): bool
     {
         return (int) $this->database->scalar(

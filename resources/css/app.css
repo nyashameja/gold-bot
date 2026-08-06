@@ -277,6 +277,23 @@
     letter-spacing: -0.02em;
   }
 
+  /**
+   * Horizontal scroll container for wide tables.
+   *
+   * `position: relative` is not decorative. Tailwind's `sr-only` is absolutely
+   * positioned, and an absolutely positioned element with no positioned
+   * ancestor takes the viewport as its containing block — so a screen-reader
+   * label inside a table header escapes this element's clipping entirely and
+   * drags the whole PAGE into horizontal scroll on mobile. Establishing a
+   * containing block here keeps it inside, clipped with everything else.
+   * Found by measuring scrollWidth, not by looking: the page renders
+   * identically either way until you try to scroll it sideways.
+   */
+  .table-scroll {
+    position: relative;
+    overflow-x: auto;
+  }
+
   /* A dot that conveys state without relying on colour alone — it is paired
      with a text label everywhere it is used, for colour-blind readers. */
   .dot {

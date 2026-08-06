@@ -9,10 +9,21 @@ use GoldBot\Domain\Strategy\StrategyConfig;
 
 interface StrategyRepositoryInterface
 {
-    /** @return list<array{id:int,code:string,name:string,class_name:string}> Enabled strategies. */
+    /**
+     * Every strategy, including the disabled ones.
+     *
+     * The engine must use enabled(); running a disabled strategy is exactly
+     * the bug that separation prevents. This method exists for the UI, which
+     * has to be able to show a strategy in order to turn it on.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function all(): array;
+
+    /** @return list<array<string,mixed>> Enabled strategies. */
     public function enabled(): array;
 
-    /** @return array{id:int,code:string,name:string,class_name:string}|null */
+    /** @return array<string,mixed>|null */
     public function findByCode(string $code): ?array;
 
     /** The active config for a strategy, or null if none has been activated. */

@@ -69,8 +69,34 @@ interface SignalRepositoryInterface
     /** @return list<array<string,mixed>> */
     public function targets(int $signalId): array;
 
+    /**
+     * Targets for many signals at once, keyed by signal id.
+     *
+     * Exists so a list page can show every signal's targets in two queries
+     * instead of one per row. The single-signal method above is fine on a
+     * detail page and wrong on an index.
+     *
+     * @param list<int> $signalIds
+     * @return array<int,list<array<string,mixed>>>
+     */
+    public function targetsFor(array $signalIds): array;
+
     /** @return list<array<string,mixed>> */
     public function scores(int $signalId): array;
+
+    /**
+     * A filtered, paginated page of signals.
+     *
+     * Filter keys: state, direction, strategy_id, timeframe_id, instrument_id,
+     * since, until. Unknown keys are ignored rather than interpolated.
+     *
+     * @param array<string,mixed> $filters
+     * @return list<array<string,mixed>>
+     */
+    public function paginate(array $filters, int $limit, int $offset): array;
+
+    /** @param array<string,mixed> $filters Same keys as paginate(). */
+    public function countMatching(array $filters): int;
 
     public function markTargetHit(int $signalId, int $level, DateTimeImmutable $at, float $price): void;
 

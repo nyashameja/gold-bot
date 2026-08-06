@@ -50,6 +50,13 @@ final class TelegramOutboxTest extends IntegrationTestCase
 
         $this->clear();
 
+        // Any chat this deployment already has is parked for the duration of
+        // the test. Without this the suite quietly assumes it is the only chat
+        // in the database — which is true on a fresh install and false the
+        // moment anyone configures a real channel, and the failure then looks
+        // like a broken outbox rather than a broken test.
+        $this->db->run('UPDATE telegram_chats SET is_active = 0 WHERE chat_id <> ?', [self::CHAT]);
+
         $this->db->insert('telegram_chats', [
             'chat_id'            => self::CHAT,
             'type'               => 'channel',
@@ -90,6 +97,10 @@ final class TelegramOutboxTest extends IntegrationTestCase
     {
         $this->db->run('DELETE FROM telegram_messages');
         $this->db->run('DELETE FROM telegram_chats WHERE chat_id = ?', [self::CHAT]);
+
+        // Restore whatever this deployment had configured. Leaving a real
+        // channel deactivated after a test run would silently stop delivery.
+        $this->db->run('UPDATE telegram_chats SET is_active = 1 WHERE chat_id <> ?', [self::CHAT]);
     }
 
     /** @return array<string,mixed>|null */

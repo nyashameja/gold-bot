@@ -43,5 +43,16 @@ interface UserRepositoryInterface
     /** @return list<User> */
     public function all(bool $includeInactive = false): array;
 
+    /**
+     * Rows for the Users table — flat arrays, roles as a joined string.
+     *
+     * Deliberately distinct from all(): that method hydrates a User per row,
+     * and each hydration costs two further queries for roles and permissions.
+     * The right shape for one user, an N+1 for a list of them.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function listing(bool $includeInactive = true): array;
+
     public function emailExists(string $email): bool;
 }

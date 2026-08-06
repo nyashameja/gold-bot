@@ -90,6 +90,17 @@ All eleven pages: Overview, Live Market, Signals, 714 Method, Economic Calendar,
 
 **Verify:** every page reads exclusively from MySQL — confirmed by running the dashboard with outbound network blocked and observing that it renders fully; every live-updating widget displays its data age; all pages responsive at the three breakpoints; no N+1 query on any index page.
 
+**Delivered.** All eleven pages plus the signal detail view and seven JSON polling endpoints. Verified: every page returned 200 with provider hosts unreachable, and `api_usage_log` did not grow by a single row across a full sweep of the dashboard — a page that called a provider would have incremented it. Every page also renders on a virgin database, which is the state that catches empty-shape bugs. Responsive at 375px and 1440px with no horizontal page scroll, measured rather than eyeballed. Index pages cost a fixed number of queries, asserted by counting statements in `DashboardReadTest`.
+
+Four bugs were found by this phase rather than written into it, three of them pre-existing:
+
+- **No parameterised route matched anything.** `Route::compile()` ran `preg_quote` over the whole pattern before substituting placeholders, so `{uuid}` became `\{uuid\}` and never compiled to a capture group. The symptom was a 404 — indistinguishable from a missing record — so it survived every phase until one needed a route parameter. `url()` had the same flaw in its own form.
+- **The settings form saved nothing.** PHP rewrites dots in top-level POST field names to underscores, so `signals.max_open` arrived as `signals_max_open`, matched no key, and the form reported success. Fields are now nested under `settings[...]`, where keys are left alone.
+- **Every page highlighted Overview in the sidebar.** `Controller::render()` defaulted `currentPath` to null, overwriting the real path that `ShareViewData` had already shared.
+- **`sr-only` broke mobile layout.** It is absolutely positioned, and with no positioned ancestor its containing block is the viewport — so a screen-reader label inside a table header escaped the scroll container and dragged the whole page sideways. The `.table-scroll` component now establishes a containing block.
+
+**Deferred to Phase 10:** the health cron that persists check results and raises alerts. The checks themselves run live on page load, deliberately — if the scheduler has stopped then so has the health cron, and a page that only replayed stored results would show the last cheerful green row it wrote before everything died.
+
 ---
 
 ## Phase 9 — Performance Analytics
