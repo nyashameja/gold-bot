@@ -41,6 +41,8 @@ return static function (Database $db): int {
         ['telegram.enabled', '0', 'bool', 'telegram', 'Telegram delivery enabled', 'Off until a bot token and at least one chat are configured.'],
         ['telegram.max_attempts', '5', 'int', 'telegram', 'Maximum delivery attempts', 'After this many failures a message is marked DEAD and surfaced on System Health.'],
         ['telegram.retry_base_seconds', '30', 'int', 'telegram', 'Retry backoff base', 'Delay before the first retry; doubles on each subsequent attempt.'],
+        ['telegram.batch_size', '20', 'int', 'telegram', 'Messages sent per drain', 'Kept modest so one cron run cannot exceed Telegram per-chat rate limits.'],
+        ['signals.breakeven_after_tp1', '1', 'bool', 'signals', 'Move stop to entry after TP1', 'Makes the remaining position risk-free once the first target is reached.'],
 
         // Data retention (docs/02 §10)
         ['retention.price_snapshots_days', '30', 'int', 'retention', 'Price snapshot retention', 'High-frequency data with little long-term value.'],

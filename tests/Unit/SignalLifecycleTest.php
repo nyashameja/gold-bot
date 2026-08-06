@@ -42,7 +42,7 @@ final class SignalLifecycleTest extends TestCase
      */
     public function test_a_closed_signal_cannot_reopen(): void
     {
-        foreach ([SignalState::ClosedWin, SignalState::ClosedLoss, SignalState::Expired, SignalState::Cancelled] as $terminal) {
+        foreach ([SignalState::ClosedWin, SignalState::ClosedLoss, SignalState::ClosedBreakeven, SignalState::Expired, SignalState::Cancelled] as $terminal) {
             foreach (SignalState::cases() as $target) {
                 self::assertFalse(
                     $this->lifecycle->canTransition($terminal, $target),
@@ -58,12 +58,27 @@ final class SignalLifecycleTest extends TestCase
         self::assertFalse($this->lifecycle->canTransition(SignalState::Pending, SignalState::ClosedLoss));
     }
 
-    /** Breakeven is not terminal — targets above it are still reachable. */
-    public function test_breakeven_remains_open(): void
+    /**
+     * Breakeven means "stop moved to entry", not "finished". Treating it as
+     * closed stops the tracker dead after TP1, while TP2 and TP3 are still
+     * reachable — which is exactly the bug this separation prevents.
+     */
+    public function test_breakeven_is_an_open_state_distinct_from_closing_flat(): void
     {
-        self::assertTrue(SignalState::Breakeven->isOpen() === false, 'Breakeven is a distinct closed-ish state.');
+        self::assertTrue(SignalState::Breakeven->isOpen(), 'The position is still running.');
+        self::assertTrue(SignalState::ClosedBreakeven->isClosed());
+
         self::assertTrue($this->lifecycle->canTransition(SignalState::Breakeven, SignalState::ClosedWin));
-        self::assertTrue($this->lifecycle->canTransition(SignalState::Breakeven, SignalState::ClosedLoss));
+        self::assertTrue($this->lifecycle->canTransition(SignalState::Breakeven, SignalState::ClosedBreakeven));
+    }
+
+    /** A stop already at entry closes flat — not as a loss. */
+    public function test_a_stop_from_breakeven_closes_flat(): void
+    {
+        self::assertSame(
+            SignalState::ClosedBreakeven,
+            $this->lifecycle->stateAfter(SignalEventType::StopLossHit, SignalState::Breakeven)
+        );
     }
 
     public function test_entry_activation_moves_a_pending_signal_to_active(): void
@@ -100,9 +115,9 @@ final class SignalLifecycleTest extends TestCase
             $this->lifecycle->stateAfter(SignalEventType::StopLossHit, SignalState::Active)
         );
 
-        self::assertNull(
-            $this->lifecycle->stateAfter(SignalEventType::StopLossHit, SignalState::Breakeven),
-            'Already at breakeven — no state change.'
+        self::assertSame(
+            SignalState::ClosedBreakeven,
+            $this->lifecycle->stateAfter(SignalEventType::StopLossHit, SignalState::Breakeven)
         );
     }
 
@@ -128,7 +143,8 @@ final class SignalLifecycleTest extends TestCase
     {
         self::assertTrue(SignalState::ClosedWin->countsTowardPerformance());
         self::assertTrue(SignalState::ClosedLoss->countsTowardPerformance());
-        self::assertTrue(SignalState::Breakeven->countsTowardPerformance());
+        self::assertTrue(SignalState::ClosedBreakeven->countsTowardPerformance());
+        self::assertFalse(SignalState::Breakeven->countsTowardPerformance(), 'Still running.');
 
         self::assertFalse(SignalState::Cancelled->countsTowardPerformance());
         self::assertFalse(SignalState::Expired->countsTowardPerformance());

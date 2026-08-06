@@ -14,7 +14,9 @@ use GoldBot\Console\Tasks\CleanupTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Console\Tasks\ImportPriceSnapshotTask;
+use GoldBot\Console\Tasks\DrainTelegramQueueTask;
 use GoldBot\Console\Tasks\RunStrategyAnalysisTask;
+use GoldBot\Console\Tasks\TrackSignalLifecycleTask;
 use GoldBot\Core\Database;
 use GoldBot\Core\Env;
 
@@ -113,6 +115,22 @@ return static function (Database $db): int {
             'cadence_minutes' => 1,
             'timeout_seconds' => 300,
             'sort_order'      => 35,
+        ],
+        [
+            'code'            => 'signals.track',
+            'name'            => 'Track signal lifecycle',
+            'handler_class'   => TrackSignalLifecycleTask::class,
+            'cadence_minutes' => 1,
+            'timeout_seconds' => 120,
+            'sort_order'      => 36,
+        ],
+        [
+            'code'            => 'telegram.drain',
+            'name'            => 'Send queued Telegram messages',
+            'handler_class'   => DrainTelegramQueueTask::class,
+            'cadence_minutes' => 1,
+            'timeout_seconds' => 120,
+            'sort_order'      => 37,
         ],
         [
             'code'            => 'calendar.import',

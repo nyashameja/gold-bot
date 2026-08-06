@@ -16,7 +16,6 @@ use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
-use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
 use GoldBot\Services\Signals\Filters\SignalFilterChain;
@@ -41,13 +40,13 @@ final class SignalEngine
     public function __construct(
         private readonly Container $container,
         private readonly StrategyRepositoryInterface $strategies,
-        private readonly SignalRepositoryInterface $signals,
         private readonly CandleRepositoryInterface $candles,
         private readonly MarketReferenceRepositoryInterface $reference,
         private readonly WatermarkRepositoryInterface $watermarks,
         private readonly SettingsRepositoryInterface $settings,
         private readonly StrategyContextBuilder $contexts,
         private readonly SignalFilterChain $filters,
+        private readonly SignalPublisher $publisher,
         private readonly ClockInterface $clock,
         private readonly LoggerInterface $logger
     ) {
@@ -196,7 +195,9 @@ final class SignalEngine
         return ['evaluated' => $evaluated, 'published' => $published, 'rejected' => $rejected];
     }
 
-    /** @param array{id:int,code:string,name:string,class_name:string} $strategy */
+    /**
+     * @param array{id:int,code:string,name:string,class_name:string} $strategy
+     */
     private function publish(
         SignalResult $result,
         array $strategy,
@@ -207,30 +208,17 @@ final class SignalEngine
     ): void {
         $expiryMinutes = (int) $this->settings->get('signals.expiry_minutes', 240);
 
-        $signalId = $this->signals->create(
+        // Delegated so the signal row and its outbound message are written in
+        // one transaction (ADR-07). Sending inline from here could produce a
+        // signal with no alert, or an alert for a signal that rolled back.
+        $this->publisher->publish(
             $result,
-            $strategy['id'],
-            $config->id,
+            $strategy,
+            $config,
+            $context,
             $runId,
-            $context->instrumentId,
             $timeframe->id,
-            $context->at,
-            $expiryMinutes > 0 ? $context->at->modify(sprintf('+%d minutes', $expiryMinutes)) : null,
-            $context->sessionCode(),
-            $context->trend()->value
+            $expiryMinutes > 0 ? $context->at->modify(sprintf('+%d minutes', $expiryMinutes)) : null
         );
-
-        $this->logger->info('Signal generated', [
-            'event'      => 'signal.generated',
-            'signal_id'  => $signalId,
-            'strategy'   => $strategy['code'],
-            'config'     => $config->version,
-            'direction'  => $result->direction?->value,
-            'score'      => $result->score,
-            'entry'      => $result->entryPrice,
-            'stop'       => $result->stopLoss,
-            'risk_reward' => $result->riskReward(),
-            'session'    => $context->sessionCode(),
-        ]);
     }
 }

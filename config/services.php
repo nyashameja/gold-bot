@@ -19,7 +19,9 @@ use GoldBot\Console\TaskDispatcher;
 use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
+use GoldBot\Console\Tasks\DrainTelegramQueueTask;
 use GoldBot\Console\Tasks\RunStrategyAnalysisTask;
+use GoldBot\Console\Tasks\TrackSignalLifecycleTask;
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
 use GoldBot\Core\Container;
@@ -33,6 +35,8 @@ use GoldBot\Integrations\Calendar\ForexFactory\ForexFactoryMapper;
 use GoldBot\Integrations\Calendar\ForexFactory\ForexFactoryProvider;
 use GoldBot\Integrations\Calendar\Fred\FredProvider;
 use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
+use GoldBot\Integrations\Telegram\TelegramClient;
+use GoldBot\Integrations\Telegram\TelegramClientInterface;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataMapper;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
 use GoldBot\Domain\Session\SessionResolver;
@@ -67,6 +71,11 @@ use GoldBot\Services\Signals\Filters\SessionFilter;
 use GoldBot\Services\Signals\Filters\SignalFilterChain;
 use GoldBot\Services\Signals\Filters\SpreadFilter;
 use GoldBot\Services\Signals\SignalEngine;
+use GoldBot\Services\Signals\SignalLifecycleService;
+use GoldBot\Services\Signals\SignalPublisher;
+use GoldBot\Services\Telegram\MessageRenderer;
+use GoldBot\Services\Telegram\SignalMessagePayload;
+use GoldBot\Services\Telegram\TelegramService;
 use GoldBot\Services\Signals\StrategyContextBuilder;
 use GoldBot\Services\Calendar\NewsBlackoutService;
 use GoldBot\Services\MarketData\StructureService;
@@ -88,11 +97,13 @@ use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
 use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
+use GoldBot\Repositories\Contracts\TelegramRepositoryInterface;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
 use GoldBot\Repositories\MySql\MySqlAuditRepository;
 use GoldBot\Repositories\MySql\MySqlSettingsRepository;
 use GoldBot\Repositories\MySql\MySqlSignalRepository;
 use GoldBot\Repositories\MySql\MySqlStrategyRepository;
+use GoldBot\Repositories\MySql\MySqlTelegramRepository;
 use GoldBot\Repositories\MySql\MySqlUserRepository;
 use GoldBot\Services\Auth\AuthService;
 use GoldBot\Support\Encryption;
@@ -429,16 +440,76 @@ return static function (Container $container, Config $config, Application $app):
         new MaxOpenFilter($c->get(SignalRepositoryInterface::class), $c->get(SettingsRepositoryInterface::class)),
     ]));
 
+    // ── Telegram (ADR-07) ────────────────────────────────────────────────────
+    $container->singleton(TelegramClientInterface::class, static fn (Container $c): TelegramClientInterface => new TelegramClient(
+        $c->get(HttpClient::class),
+        $c->get(ApiBudget::class),
+        $c->get(LoggerInterface::class),
+        Env::string('TELEGRAM_BOT_TOKEN'),
+        Env::string('TELEGRAM_BASE_URL', 'https://api.telegram.org')
+    ));
+
+    $container->singleton(
+        TelegramRepositoryInterface::class,
+        static fn (Container $c): TelegramRepositoryInterface => new MySqlTelegramRepository($c->get(Database::class))
+    );
+
+    $container->singleton(MessageRenderer::class, static fn (Container $c): MessageRenderer => new MessageRenderer(
+        $c->get(Database::class)
+    ));
+
+    $container->singleton(SignalMessagePayload::class, static fn (): SignalMessagePayload => new SignalMessagePayload(
+        $config->int('market.instruments.0.price_precision', 2)
+    ));
+
+    $container->singleton(TelegramService::class, static fn (Container $c): TelegramService => new TelegramService(
+        $c->get(TelegramRepositoryInterface::class),
+        $c->get(TelegramClientInterface::class),
+        $c->get(MessageRenderer::class),
+        $c->get(SettingsRepositoryInterface::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    // Owns the transaction that makes signal + message atomic (ADR-07).
+    $container->singleton(SignalPublisher::class, static fn (Container $c): SignalPublisher => new SignalPublisher(
+        $c->get(Database::class),
+        $c->get(SignalRepositoryInterface::class),
+        $c->get(TelegramService::class),
+        $c->get(SignalMessagePayload::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(SignalLifecycleService::class, static fn (Container $c): SignalLifecycleService => new SignalLifecycleService(
+        $c->get(SignalRepositoryInterface::class),
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(SignalPublisher::class),
+        $c->get(SettingsRepositoryInterface::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(TrackSignalLifecycleTask::class, static fn (Container $c): TrackSignalLifecycleTask => new TrackSignalLifecycleTask(
+        $c->get(SignalLifecycleService::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(DrainTelegramQueueTask::class, static fn (Container $c): DrainTelegramQueueTask => new DrainTelegramQueueTask(
+        $c->get(TelegramService::class),
+        $config->int('telegram.batch_size', 20)
+    ));
+
     $container->singleton(SignalEngine::class, static fn (Container $c): SignalEngine => new SignalEngine(
         $c,
         $c->get(StrategyRepositoryInterface::class),
-        $c->get(SignalRepositoryInterface::class),
         $c->get(CandleRepositoryInterface::class),
         $c->get(MarketReferenceRepositoryInterface::class),
         $c->get(WatermarkRepositoryInterface::class),
         $c->get(SettingsRepositoryInterface::class),
         $c->get(StrategyContextBuilder::class),
         $c->get(SignalFilterChain::class),
+        $c->get(SignalPublisher::class),
         $c->get(ClockInterface::class),
         $c->get(LoggerInterface::class)
     ));

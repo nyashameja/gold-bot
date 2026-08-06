@@ -19,9 +19,10 @@ final class SignalLifecycle
     private const TRANSITIONS = [
         'PENDING' => ['ACTIVE', 'CANCELLED', 'EXPIRED'],
         'ACTIVE'  => ['CLOSED_WIN', 'CLOSED_LOSS', 'BREAKEVEN', 'CANCELLED'],
-        // Breakeven is not terminal: the stop has moved to entry but targets
-        // above it can still be reached.
-        'BREAKEVEN' => ['CLOSED_WIN', 'CLOSED_LOSS', 'CANCELLED'],
+        // Breakeven is NOT terminal: the stop has moved to entry, but the
+        // targets above it are still reachable. Its stop being hit closes the
+        // signal flat, which is CLOSED_BREAKEVEN — neither a win nor a loss.
+        'BREAKEVEN' => ['CLOSED_WIN', 'CLOSED_LOSS', 'CLOSED_BREAKEVEN', 'CANCELLED'],
     ];
 
     public function canTransition(SignalState $from, SignalState $to): bool
@@ -43,9 +44,10 @@ final class SignalLifecycle
     {
         $next = match ($event) {
             SignalEventType::EntryActivated   => SignalState::Active,
+            // A stop already moved to entry closes flat, not at a loss —
+            // recording it as a loss would understate the win rate.
             SignalEventType::StopLossHit      => $current === SignalState::Breakeven
-                // A stop already at entry closes flat, not at a loss.
-                ? SignalState::Breakeven
+                ? SignalState::ClosedBreakeven
                 : SignalState::ClosedLoss,
             SignalEventType::Tp3Hit           => SignalState::ClosedWin,
             SignalEventType::MovedToBreakeven => SignalState::Breakeven,
