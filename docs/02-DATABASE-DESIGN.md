@@ -132,9 +132,18 @@ This small table is what makes "only analyse new candles" structural rather than
 
 Blackout windows live on the category, so "no signals within 30 minutes of NFP" is configuration rather than code — and can differ per event type, which it should: a rate decision warrants a wider window than retail sales.
 
-**`economic_events`** — `id`, `provider_event_id`, `category_id`, `country`, `currency`, `title`, `impact` (`LOW|MEDIUM|HIGH`), `scheduled_at`, `actual`, `forecast`, `previous`, `revised_from`, `unit`, `source`, `created_at`, `updated_at`.
+**`economic_events`** — `id`, `provider_event_id`, `category_id`, `country`, `currency`, `title`, `impact` (`LOW|MEDIUM|HIGH|HOLIDAY`), `scheduled_at`, `time_is_approximate`, `actual`, `forecast`, `previous`, `revised_from`, `unit`, `source`, `first_seen_at`, `last_seen_at`, `created_at`, `updated_at`.
 
 `UNIQUE (source, provider_event_id)` for idempotent upsert — events are revised as actuals publish, and re-importing must update rather than duplicate. Index `(scheduled_at, impact)` serves both the calendar page and the blackout filter, which is the hottest read: every strategy run asks "is there a high-impact event near now?"
+
+Four columns exist specifically because of the free-source decision (ADR-12, ADR-15, ADR-16):
+
+- **`impact` includes `HOLIDAY`.** ForexFactory emits it as a fourth impact level, and it is genuinely useful rather than noise: a bank holiday means thin liquidity, which is a legitimate reason to suppress signals even though no data is released.
+- **`provider_event_id` is synthetic** for sources that supply no identifier — a deterministic hash of `(source, currency, normalised_title, scheduled_at)` computed in the adapter (ADR-16). The column and its constraint are unchanged; only the adapter knows the difference.
+- **`time_is_approximate`** flags events published as "Day 1" or "Tentative" rather than at a fixed time — common for Fed speeches and some rate decisions. A blackout window around an approximate time should be widened, not applied as though the minute were known.
+- **`first_seen_at` / `last_seen_at`** support the reconciliation described in ADR-16: an unreleased event that stops appearing in the feed has been rescheduled or cancelled, and should be retired rather than left to suppress signals forever.
+
+The `source` column earns its place now that two providers write here concurrently — ForexFactory and FRED can both describe the same release, and the blackout filter deduplicates on `(currency, scheduled_at, category_id)` while retaining both rows for provenance.
 
 ---
 
@@ -227,5 +236,6 @@ The cleanup task enforces these, all configurable in `settings`:
 | `task_runs` | 90 days | Operational forensics window. |
 | `system_logs` | 90 days | Files retain longer. |
 | `signals`, `signal_events` | Indefinite | Permanent performance record. |
+| `economic_events` | **Indefinite — never pruned** | The upstream feed is a rolling window (ADR-15). This table is the only archive that will ever exist, and it cannot be rebuilt. |
 | `audit_logs` | Indefinite | Audit trails are not pruned. |
 | `telegram_messages` | 90 days for `SENT` | `DEAD` retained for investigation. |

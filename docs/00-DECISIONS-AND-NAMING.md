@@ -129,11 +129,42 @@ Binary floating point cannot represent decimal fractions exactly. In a system th
 
 **Decision:** `DECIMAL(14,5)` for all prices. Five decimal places accommodates FX pairs when V2 adds them, without changing the schema.
 
-### ADR-12 — The economic calendar provider is behind a port
+### ADR-12 — The economic calendar uses free sources behind a port
 
-Trading Economics is specified, and the design uses it. But its calendar API is priced for institutional use — materially above Twelve Data — and pricing should be confirmed before Phase 4 is committed. It would be poor engineering to hard-wire a single expensive vendor into the core of a system that only needs "high-impact events for USD and XAU in a date range".
+Trading Economics was specified, but there is no subscription and its calendar API is priced for institutional use. The port defined here is exactly what makes that a non-event: the system needs "high-impact events affecting USD in a date range", and several free sources provide that.
 
-**Decision:** define `EconomicCalendarProviderInterface`. Trading Economics is the default adapter per your brief. Swapping to an alternative provider later becomes one new class and one container binding — not a refactor.
+**Decision:** define `EconomicCalendarProviderInterface` with two free adapters.
+
+**Primary — ForexFactory weekly JSON feed** (`nfs.faireconomy.media`, XML/JSON/CSV/ICS). Free, no authentication, no quota. It publishes date, UTC timestamp, currency, impact rating, title, actual, forecast (consensus), previous, revised, unit and source — which covers every event type in the brief (CPI, PPI, NFP, GDP, retail sales, rate decisions, Fed speeches) and maps almost exactly onto the `economic_events` table. Consensus forecast is the field that matters most for a news filter and the one most free sources omit.
+
+**Corroborating — FRED API** (Federal Reserve Bank of St. Louis). Free, permanent API key, no meaningful quota, and authoritative: it is the issuing institution. `fred/releases/dates` gives official US release schedules and the series endpoints give actual values. It carries no consensus forecast, so it does not replace ForexFactory — it validates it. When the two disagree on whether a release happened or when, FRED wins.
+
+Using both costs one extra adapter and removes the single point of failure that an unofficial feed would otherwise be.
+
+**Two caveats, stated plainly:**
+
+1. The ForexFactory feed is a courtesy feed with no SLA and no support contract. It can change or disappear without notice. That is acceptable for an internal tool with FRED as corroboration and a health check on feed freshness — but **if Gold Bot is commercialised, its terms of use must be reviewed before signals are redistributed to paying subscribers.** At that point a paid provider becomes a licensing question, not a technical one, and the port means it is a one-class change.
+2. I could not reach either endpoint from the build environment to confirm response shapes — outbound network policy blocks those hosts. Field lists above come from documentation and published usage. **Phase 5 begins by capturing live responses into test fixtures and asserting the mapping against them,** rather than trusting this document.
+
+Trading Economics remains a supported upgrade path: if a subscription is ever bought, it is a third adapter and one line in `config/services.php`.
+
+### ADR-15 — The calendar feed is a rolling window, so we archive every poll
+
+This follows directly from ADR-12 and is easy to miss. The ForexFactory feed exposes only the current week (with separate last-week and next-week endpoints). It is not a queryable historical archive.
+
+The consequence: **the news blackout filter cannot be backtested over any period we did not observe live.** A backtest of 2024 would silently run with no news filter at all and report better results than the live system would have produced — the most dangerous kind of wrong, because it looks like success.
+
+**Decision:** every calendar poll upserts into `economic_events` permanently, and that table is never pruned (document 02, §10). History accumulates from the day Phase 5 ships. The backtester refuses to run a news-filtered strategy over a period predating the earliest archived event, rather than silently producing a flattering number.
+
+This costs nothing now and cannot be recovered later. It is the single strongest argument for building Phase 5 early even though nothing depends on it until Phase 6.
+
+### ADR-16 — Calendar events need a synthetic identity key
+
+Trading Economics supplies a stable event id. ForexFactory does not — the feed has no identifier field at all, so the `UNIQUE (source, provider_event_id)` constraint that makes import idempotent has nothing to hold onto.
+
+**Decision:** the provider adapter computes `provider_event_id` as a deterministic hash of `(source, currency, normalised_title, scheduled_at)`. Re-polling the same event produces the same key and updates in place; a genuinely new event produces a new key.
+
+The tradeoff is honest: if a provider reschedules an event, the changed timestamp yields a new key and the old row remains as a stale duplicate. The calendar import task therefore reconciles by removing archived-but-unreleased events for a window that the latest poll no longer lists. Rescheduling is rare, but silently carrying a phantom event into a blackout filter would suppress real signals for no reason.
 
 ### ADR-13 — Indicators are precomputed into a wide table
 
@@ -169,9 +200,9 @@ Also: what does "714" refer to? If it encodes parameters (periods of 7 and 14, a
 
 Everything up to and including Phase 4 can be built without this answer.
 
-### Q2. Trading Economics subscription *(blocks Phase 4)*
+### ~~Q2. Trading Economics subscription~~ — **resolved**
 
-Confirm the plan and its quota. If the cost is not justified for an internal tool, ADR-12 means naming an alternative provider is a small change rather than a redesign.
+No subscription. Replaced with free sources under ADR-12: ForexFactory as primary, FRED as corroboration. Phase 5 is unblocked and should now be built **early** rather than deferred, because of ADR-15 — the calendar archive only accumulates from the day it ships.
 
 ### Q3. Twelve Data plan *(shapes Phase 2)*
 

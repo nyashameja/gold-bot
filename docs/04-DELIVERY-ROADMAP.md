@@ -52,13 +52,17 @@ Indicator calculators — EMA, RSI, ATR, MACD, Bollinger, volume SMA — as pure
 
 ---
 
-## Phase 5 — Economic Calendar
+## Phase 5 — Economic Calendar *(build early — see below)*
 
-Migrations for the Calendar section. `TradingEconomicsProvider` behind `EconomicCalendarProviderInterface`, idempotent upsert keyed on the provider event id, revision handling as actuals publish, event category mapping and blackout windows. `NewsBlackoutService`.
+Migrations for the Calendar section. `ForexFactoryProvider` and `FredProvider` behind `EconomicCalendarProviderInterface`, combined by `CompositeCalendarProvider`. Synthetic identity hashing (ADR-16), idempotent upsert, revision handling as actuals publish, reconciliation of rescheduled events, category mapping, blackout windows and `NewsBlackoutService`.
 
-**Blocked on Q2** (document 00) — confirm the subscription before this phase starts.
+**No longer blocked** — the Trading Economics subscription is not needed (ADR-12).
 
-**Verify:** import is idempotent across repeated runs; a revised event updates in place rather than duplicating; the blackout service correctly reports an active window for a seeded high-impact event and correctly reports none outside it.
+**This phase should run as early as capacity allows, ahead of its position on the critical path.** Under ADR-15 the upstream feed is a rolling window, so the historical archive only begins accumulating the day this ships. Every week it is delayed is a week of news history that can never be recovered — and without it, the Phase 11 backtester cannot honestly evaluate any news-filtered strategy.
+
+**First task of the phase:** capture live responses from both providers into test fixtures and assert the field mapping against them. The field lists in documents 00 and 02 come from documentation, not from observed traffic (ADR-12, caveat 2), and must be confirmed before anything is built on them.
+
+**Verify:** import is idempotent across repeated runs; a revised event updates in place rather than duplicating; an event that disappears from the feed while still unreleased is retired, not left active; `HOLIDAY` and approximate-time events are handled distinctly; the two providers describing the same release deduplicate correctly in the blackout filter while both rows persist; the blackout service reports an active window for a seeded high-impact event and none outside it; a feed-freshness health check fires when the last successful poll exceeds its threshold.
 
 ---
 
@@ -117,10 +121,12 @@ Health checks for every component in document 01, §11, with the task-staleness 
 ```
 0 ─ 1 ─ 2 ─ 3 ─ 4 ─┬─ 6 ─ 7 ─ 8 ─ 9 ─ 10 ─ 11
                    │
-             5 ────┘        (Phase 5 parallels 4; Phase 6 needs both)
+       5 ──────────┘        (pull 5 as early as possible — ADR-15)
 ```
 
 **Critical path:** 0 → 1 → 3 → 4 → 6 → 7. Phases 2, 5 and 8 can move in parallel with adjacent work if capacity allows.
+
+**Phase 5 is the exception to ordering by dependency.** Nothing needs it until Phase 6, but its data archive starts accruing only once it runs (ADR-15). Ship the calendar importer as soon as Phase 1's migrations exist — even before the dashboard can display it — so history is banking while the rest is built.
 
 **A usable system exists at the end of Phase 7:** signals generate and reach Telegram, operated by CLI. Phase 8 makes it pleasant; Phases 9–11 make it measurable and trustworthy.
 
@@ -131,11 +137,11 @@ Health checks for every component in document 01, §11, with the task-staleness 
 | Blocker | Blocks | Needed by |
 |---|---|---|
 | Q1 — 714 rules | Phase 6 | Start of Phase 6 |
-| Q2 — Trading Economics subscription | Phase 5 | Start of Phase 5 |
+| ~~Q2 — Trading Economics~~ | ~~Phase 5~~ | **Resolved** — free sources, ADR-12 |
 | Q3 — Twelve Data plan | Phase 3 defaults | Start of Phase 3 |
-| Repository name | Phase 0 | Immediately |
+| ~~Repository name~~ | ~~Phase 0~~ | **Resolved** — `gold-bot`, private |
 
-Phases 0–4 represent substantial work that none of Q1 or Q2 blocks. If the 714 rules need time to specify, that costs nothing yet.
+Only Q1 remains, and it blocks nothing before Phase 6. Phases 0–5 are substantial work that can proceed immediately, so time spent specifying the 714 rules costs nothing.
 
 ---
 

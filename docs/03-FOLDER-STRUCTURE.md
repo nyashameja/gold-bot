@@ -145,7 +145,11 @@ app/
 │   ├── MarketData/ MarketDataProviderInterface.php
 │   │                TwelveData/ TwelveDataProvider.php  TwelveDataMapper.php
 │   ├── Calendar/   EconomicCalendarProviderInterface.php
-│   │                TradingEconomics/ …                        (ADR-12)
+│   │                ForexFactory/ ForexFactoryProvider.php     (ADR-12, primary)
+│   │                              ForexFactoryMapper.php
+│   │                              EventIdentityHasher.php      (ADR-16)
+│   │                Fred/ FredProvider.php  FredMapper.php     (corroborating)
+│   │                CompositeCalendarProvider.php   Merges + deduplicates
 │   └── Telegram/   TelegramClient.php  TelegramFormatter.php
 │
 ├── Infrastructure/

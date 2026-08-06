@@ -34,7 +34,7 @@ Start with document 00.
 
 PHP 8.3 · MySQL 8 · Composer · PSR-4 · MVC · Apache on cPanel · Cron
 Tailwind CSS · Alpine.js · Chart.js · TradingView Advanced Chart
-Twelve Data (market data) · Trading Economics (economic calendar) · Telegram Bot API
+Twelve Data (market data) · ForexFactory + FRED (economic calendar) · Telegram Bot API
 
 No framework, no Node.js backend, no Python in the core application.
 Everything runs on standard cPanel shared hosting.
@@ -43,12 +43,15 @@ Everything runs on standard cPanel shared hosting.
 
 ## Open Questions
 
-Three answers are needed before the phases they block can begin:
+One answer is still needed:
 
 1. **The 714 Method rules** — blocks Phase 6. The architecture treats it as a fully
    configurable five-pillar weighted rubric with nothing hardcoded; the specific rules
    are yours to define. See document 00, §3.
-2. **Trading Economics subscription** — blocks Phase 5.
-3. **Twelve Data plan tier** — shapes Phase 3 fetch cadences.
 
-Phases 0–4 are unblocked by all three.
+Resolved: repository name (`gold-bot`, private) and the economic calendar provider —
+no Trading Economics subscription is required, see ADR-12. Twelve Data's plan tier only
+affects Phase 3 default cadences and can be confirmed at that point.
+
+Phases 0–5 are unblocked. **Phase 5 should ship early** — the calendar feed is a rolling
+window, so the historical archive only accumulates from the day it runs (ADR-15).
