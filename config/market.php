@@ -68,6 +68,16 @@ return [
         'backfill_output_size' => 5000,
     ],
 
+    /**
+     * Structure detection. swing_lookback is the noise/signal knob: higher
+     * finds fewer, more significant swings.
+     */
+    'structure' => [
+        'swing_lookback'    => 3,
+        'cluster_tolerance' => 0.001,
+        'max_levels'        => 8,
+    ],
+
     'http' => [
         'timeout_seconds'         => 15,
         'connect_timeout_seconds' => 5,

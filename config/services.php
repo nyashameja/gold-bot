@@ -16,6 +16,7 @@ declare(strict_types=1);
  */
 
 use GoldBot\Console\TaskDispatcher;
+use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
@@ -27,15 +28,22 @@ use GoldBot\Infrastructure\Http\HttpClient;
 use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataMapper;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
+use GoldBot\Domain\Structure\LevelBuilder;
+use GoldBot\Domain\Structure\StructureAnalyser;
+use GoldBot\Domain\Structure\SwingDetector;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
+use GoldBot\Repositories\Contracts\IndicatorRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
 use GoldBot\Repositories\MySql\MySqlCandleRepository;
+use GoldBot\Repositories\MySql\MySqlIndicatorRepository;
 use GoldBot\Repositories\MySql\MySqlMarketReferenceRepository;
 use GoldBot\Repositories\MySql\MySqlPriceSnapshotRepository;
 use GoldBot\Repositories\MySql\MySqlWatermarkRepository;
 use GoldBot\Services\MarketData\CandleIngestService;
+use GoldBot\Services\MarketData\IndicatorService;
+use GoldBot\Services\MarketData\StructureService;
 use GoldBot\Infrastructure\Cache\ApcuCache;
 use GoldBot\Infrastructure\Cache\CacheInterface;
 use GoldBot\Infrastructure\Cache\FileCache;
@@ -223,6 +231,46 @@ return static function (Container $container, Config $config, Application $app):
         $c->get(ClockInterface::class),
         $c->get(LoggerInterface::class),
         $config->int('market.fetch.poll_output_size', 100)
+    ));
+
+    // ── Analysis ─────────────────────────────────────────────────────────────
+    // Swing lookback is configuration: it is the single knob that decides how
+    // much noise counts as structure, and different timeframes want different
+    // answers once V2 tunes per-instrument.
+    $container->singleton(SwingDetector::class, static fn (): SwingDetector => new SwingDetector(
+        $config->int('market.structure.swing_lookback', 3)
+    ));
+
+    $container->singleton(StructureAnalyser::class, static fn (Container $c): StructureAnalyser => new StructureAnalyser(
+        $c->get(SwingDetector::class)
+    ));
+
+    $container->singleton(LevelBuilder::class, static fn (Container $c): LevelBuilder => new LevelBuilder(
+        $c->get(SwingDetector::class),
+        (float) $config->get('market.structure.cluster_tolerance', 0.001),
+        $config->int('market.structure.max_levels', 8)
+    ));
+
+    $container->singleton(
+        IndicatorRepositoryInterface::class,
+        static fn (Container $c): IndicatorRepositoryInterface => new MySqlIndicatorRepository($c->get(Database::class))
+    );
+
+    $container->singleton(IndicatorService::class, static fn (Container $c): IndicatorService => new IndicatorService(
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(IndicatorRepositoryInterface::class),
+        $c->get(WatermarkRepositoryInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(StructureService::class, static fn (Container $c): StructureService => new StructureService(
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(WatermarkRepositoryInterface::class),
+        $c->get(Database::class),
+        $c->get(SwingDetector::class),
+        $c->get(StructureAnalyser::class),
+        $c->get(LevelBuilder::class),
+        $c->get(LoggerInterface::class)
     ));
 
     // ── Scheduler ────────────────────────────────────────────────────────────

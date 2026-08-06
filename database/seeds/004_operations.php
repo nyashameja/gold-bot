@@ -9,6 +9,7 @@ declare(strict_types=1);
  * an operator retuning a schedule in the UI is not reverted by a deploy.
  */
 
+use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\CleanupTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Console\Tasks\ImportPriceSnapshotTask;
@@ -91,6 +92,16 @@ return static function (Database $db): int {
             'cadence_minutes' => 1,
             'timeout_seconds' => 300,
             'sort_order'      => 20,
+        ],
+        [
+            'code'            => 'market.analyse',
+            'name'            => 'Compute indicators & structure',
+            'handler_class'   => CalculateIndicatorsTask::class,
+            // No network: works from stored candles, so it costs no API
+            // budget and runs even while the provider is unreachable.
+            'cadence_minutes' => 1,
+            'timeout_seconds' => 300,
+            'sort_order'      => 30,
         ],
         [
             'code'            => 'system.cleanup',
