@@ -67,4 +67,9 @@ return [
         'poll_output_size'     => 100,
         'backfill_output_size' => 5000,
     ],
+
+    'http' => [
+        'timeout_seconds'         => 15,
+        'connect_timeout_seconds' => 5,
+    ],
 ];

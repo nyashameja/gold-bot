@@ -15,10 +15,27 @@ declare(strict_types=1);
  * stub would let a caller silently receive fabricated market data.
  */
 
+use GoldBot\Console\TaskDispatcher;
+use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
 use GoldBot\Core\Container;
 use GoldBot\Core\Database;
+use GoldBot\Core\Env;
+use GoldBot\Infrastructure\Http\ApiBudget;
+use GoldBot\Infrastructure\Http\HttpClient;
+use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
+use GoldBot\Integrations\MarketData\TwelveData\TwelveDataMapper;
+use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
+use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
+use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
+use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
+use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
+use GoldBot\Repositories\MySql\MySqlCandleRepository;
+use GoldBot\Repositories\MySql\MySqlMarketReferenceRepository;
+use GoldBot\Repositories\MySql\MySqlPriceSnapshotRepository;
+use GoldBot\Repositories\MySql\MySqlWatermarkRepository;
+use GoldBot\Services\MarketData\CandleIngestService;
 use GoldBot\Infrastructure\Cache\ApcuCache;
 use GoldBot\Infrastructure\Cache\CacheInterface;
 use GoldBot\Infrastructure\Cache\FileCache;
@@ -141,6 +158,89 @@ return static function (Container $container, Config $config, Application $app):
         $c->get(ClockInterface::class),
         $config->int('app.rate_limit.max_requests', 60),
         $config->int('app.rate_limit.window_seconds', 60)
+    ));
+
+    // ── Market data ──────────────────────────────────────────────────────────
+    $container->singleton(HttpClient::class, static fn (Container $c): HttpClient => new HttpClient(
+        $c->get(LoggerInterface::class),
+        $config->int('market.http.timeout_seconds', 15),
+        $config->int('market.http.connect_timeout_seconds', 5)
+    ));
+
+    $container->singleton(ApiBudget::class, static fn (Container $c): ApiBudget => new ApiBudget(
+        $c->get(Database::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(TwelveDataMapper::class, static fn (): TwelveDataMapper => new TwelveDataMapper());
+
+    // The one place Twelve Data is named. Swapping providers is this binding.
+    $container->singleton(
+        MarketDataProviderInterface::class,
+        static fn (Container $c): MarketDataProviderInterface => new TwelveDataProvider(
+            $c->get(HttpClient::class),
+            $c->get(TwelveDataMapper::class),
+            $c->get(ApiBudget::class),
+            $c->get(ClockInterface::class),
+            $c->get(LoggerInterface::class),
+            Env::string('TWELVE_DATA_API_KEY'),
+            Env::string('TWELVE_DATA_BASE_URL', 'https://api.twelvedata.com'),
+            $config->array('market.fetch.settle_seconds', [])
+        )
+    );
+
+    $container->singleton(
+        CandleRepositoryInterface::class,
+        static fn (Container $c): CandleRepositoryInterface => new MySqlCandleRepository($c->get(Database::class))
+    );
+
+    $container->singleton(
+        PriceSnapshotRepositoryInterface::class,
+        static fn (Container $c): PriceSnapshotRepositoryInterface => new MySqlPriceSnapshotRepository(
+            $c->get(Database::class)
+        )
+    );
+
+    $container->singleton(
+        MarketReferenceRepositoryInterface::class,
+        static fn (Container $c): MarketReferenceRepositoryInterface => new MySqlMarketReferenceRepository(
+            $c->get(Database::class)
+        )
+    );
+
+    $container->singleton(
+        WatermarkRepositoryInterface::class,
+        static fn (Container $c): WatermarkRepositoryInterface => new MySqlWatermarkRepository($c->get(Database::class))
+    );
+
+    $container->singleton(CandleIngestService::class, static fn (Container $c): CandleIngestService => new CandleIngestService(
+        $c->get(MarketDataProviderInterface::class),
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(PriceSnapshotRepositoryInterface::class),
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(WatermarkRepositoryInterface::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class),
+        $config->int('market.fetch.poll_output_size', 100)
+    ));
+
+    // ── Scheduler ────────────────────────────────────────────────────────────
+    $container->singleton(TaskDispatcher::class, static fn (Container $c): TaskDispatcher => new TaskDispatcher(
+        $c,
+        $c->get(Database::class),
+        $c->get(LockInterface::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(ImportMarketDataTask::class, static fn (Container $c): ImportMarketDataTask => new ImportMarketDataTask(
+        $c->get(CandleIngestService::class),
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(ApiBudget::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class),
+        $config->array('market.fetch.settle_seconds', [])
     ));
 
     // ── Router ───────────────────────────────────────────────────────────────

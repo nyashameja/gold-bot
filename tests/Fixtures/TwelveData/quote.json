@@ -1,0 +1,14 @@
+{
+  "symbol": "XAU/USD",
+  "name": "Gold Spot/US Dollar",
+  "timestamp": 1786012200,
+  "open": "3308.20000",
+  "high": "3320.00000",
+  "low": "3305.10000",
+  "close": "3314.20000",
+  "previous_close": "3308.20000",
+  "change": "6.00000",
+  "percent_change": "0.18135",
+  "bid": "3314.05000",
+  "ask": "3314.35000"
+}

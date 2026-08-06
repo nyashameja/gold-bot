@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
+use GoldBot\Console\TaskDispatcher;
 use GoldBot\Core\Database;
 use GoldBot\Database\Migrator;
 use GoldBot\Database\Seeder;
@@ -31,7 +32,9 @@ use GoldBot\Infrastructure\Cache\CacheInterface;
 use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Infrastructure\Lock\LockInterface;
 use GoldBot\Infrastructure\Logging\LoggerInterface;
+use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
+use GoldBot\Services\MarketData\CandleIngestService;
 use GoldBot\Services\Auth\AuthService;
 use GoldBot\Support\Encryption;
 
@@ -128,6 +131,84 @@ try {
             $out('');
             $out('Installation complete. Create your first administrator with:');
             $out('  php cron/run.php user:create   (Phase 2)');
+            break;
+
+        case 'schedule':
+            // The single cPanel cron entry (ADR-08):
+            //   * * * * * php /home/USER/gold-bot/cron/run.php schedule
+            /** @var TaskDispatcher $dispatcher */
+            $dispatcher = $container->get(TaskDispatcher::class);
+            $results = $dispatcher->runDue();
+
+            if ($results === []) {
+                break; // Nothing due — stay silent so the cron log stays useful.
+            }
+
+            foreach ($results as $code => $result) {
+                $out(sprintf(
+                    '[%s] %-18s %-15s %s',
+                    date('c'),
+                    $code,
+                    $result->status,
+                    $result->errorMessage ?? $result->output
+                ));
+            }
+            break;
+
+        case 'task':
+            $code = $argv[2] ?? '';
+
+            if ($code === '') {
+                $err('Usage: php cron/run.php task <code>');
+                $rows = $container->get(Database::class)->select(
+                    'SELECT code, name, cadence_minutes, is_enabled, last_success_at FROM scheduled_tasks ORDER BY sort_order'
+                );
+
+                foreach ($rows as $row) {
+                    $err(sprintf(
+                        '  %-18s %-28s every %5dm  %s  last ok: %s',
+                        $row['code'],
+                        $row['name'],
+                        $row['cadence_minutes'],
+                        $row['is_enabled'] ? 'enabled ' : 'disabled',
+                        $row['last_success_at'] ?? 'never'
+                    ));
+                }
+
+                exit(1);
+            }
+
+            $result = $container->get(TaskDispatcher::class)->runOne($code, ignoreLock: true);
+            $out(sprintf('%s: %s', $result->status, $result->errorMessage ?? $result->output));
+            exit($result->status === 'FAILED' ? 1 : 0);
+
+        case 'market:backfill':
+            /** @var MarketReferenceRepositoryInterface $reference */
+            $reference = $container->get(MarketReferenceRepositoryInterface::class);
+            /** @var CandleIngestService $ingest */
+            $ingest = $container->get(CandleIngestService::class);
+
+            $symbol = $argv[2] ?? 'XAU/USD';
+            $days = (int) ($argv[3] ?? 365);
+
+            $instrument = $reference->instrumentBySymbol($symbol);
+
+            if ($instrument === null) {
+                $err(sprintf('Unknown instrument [%s].', $symbol));
+                exit(1);
+            }
+
+            $from = new DateTimeImmutable(sprintf('-%d days', max(1, $days)), new DateTimeZone('UTC'));
+            $out(sprintf('Backfilling %s from %s.', $symbol, $from->format('Y-m-d')));
+
+            foreach ($reference->activeTimeframes() as $timeframe) {
+                try {
+                    $r = $ingest->backfill($instrument['id'], $timeframe, $from);
+                    $out(sprintf('  %-4s fetched %5d, inserted %5d', $timeframe->code, $r['fetched'], $r['inserted']));
+                } catch (Throwable $e) {
+                    $err(sprintf('  %-4s FAILED: %s', $timeframe->code, $e->getMessage()));
+                }
+            }
             break;
 
         case 'user:create':
@@ -300,6 +381,9 @@ try {
             $out('  seed               Apply reference-data seeds');
             $out('  install            migrate + seed, for a fresh deployment');
             $out('  user:create        Create a user: <email> "<Name>" [role]');
+            $out('  schedule           Run all due scheduled tasks (the cPanel cron entry)');
+            $out('  task <code>        Run one task now, ignoring its lock');
+            $out('  market:backfill    Seed history: [symbol] [days]');
             $out('  check              Verify configuration and wiring');
             $out('  key:generate       Print a new APP_KEY');
             $out('');

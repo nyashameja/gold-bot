@@ -1,0 +1,7 @@
+{
+  "meta": { "symbol": "XAU/USD", "interval": "15min" },
+  "values": [
+    { "datetime": "2026-08-06 10:30:00", "open": "3312.45000", "high": "3315.10000", "close": "3314.20000" }
+  ],
+  "status": "ok"
+}
