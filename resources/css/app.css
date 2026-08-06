@@ -1,0 +1,288 @@
+@import "tailwindcss";
+
+/* Templates are PHP, so the class scanner needs to be pointed at them
+   explicitly — auto-detection does not cover .php by default. */
+@source "../views/**/*.php";
+@source "../../app/**/*.php";
+
+/**
+ * Gold Bot design system.
+ *
+ * Bloomberg Terminal meets TradingView: near-black surfaces, a single gold
+ * accent, and generous spacing. Colour is reserved for meaning — gold for
+ * brand and focus, green and red for direction and outcome only. A dashboard
+ * where everything is coloured is a dashboard where nothing stands out.
+ */
+
+@theme {
+  /* Surfaces — layered rather than a single flat black, so cards read as
+     elevated without needing heavy borders. */
+  --color-base-950: #07080a;
+  --color-base-900: #0b0d10;
+  --color-base-850: #101318;
+  --color-base-800: #151920;
+  --color-base-750: #1b2028;
+  --color-base-700: #232932;
+  --color-base-600: #333b47;
+
+  /* Gold accent ramp */
+  --color-gold-200: #f4e4b0;
+  --color-gold-300: #ecd489;
+  --color-gold-400: #e0be5e;
+  --color-gold-500: #d4af37;
+  --color-gold-600: #b8942a;
+  --color-gold-700: #8f721f;
+
+  /* Semantic — direction and outcome */
+  --color-bull-400: #34d399;
+  --color-bull-500: #10b981;
+  --color-bear-400: #f87171;
+  --color-bear-500: #ef4444;
+  --color-warn-400: #fbbf24;
+  --color-info-400: #60a5fa;
+
+  /* Text */
+  --color-ink-100: #f3f4f6;
+  --color-ink-300: #d1d5db;
+  --color-ink-400: #9ca3af;
+  --color-ink-500: #6b7280;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Tabular figures matter here: prices in a column must align, and a
+     proportional font makes a moving last digit shift the whole number. */
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-card: 14px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--color-base-600) transparent;
+  }
+
+  body {
+    background-color: var(--color-base-950);
+    color: var(--color-ink-300);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Every number in the interface is tabular. */
+  .num,
+  td.num,
+  .price {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Hides Alpine-controlled elements until Alpine initialises, so the
+     off-canvas sidebar does not flash across the page on first paint. */
+  [x-cloak] {
+    display: none !important;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-base-600);
+    border-radius: 999px;
+  }
+
+  /* Respect a user's reduced-motion preference rather than assuming everyone
+     wants the transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .card {
+    background-color: var(--color-base-900);
+    border: 1px solid var(--color-base-750);
+    border-radius: var(--radius-card);
+    transition: border-color 200ms ease, transform 200ms ease;
+  }
+
+  .card-hover:hover {
+    border-color: var(--color-base-600);
+  }
+
+  /* Glass is used sparingly — the sticky top bar and modals only. Applied
+     broadly it costs paint performance and reduces contrast. */
+  .glass {
+    background-color: color-mix(in srgb, var(--color-base-900) 72%, transparent);
+    backdrop-filter: blur(12px) saturate(140%);
+    border-bottom: 1px solid var(--color-base-750);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0.625rem 1rem;
+    transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+    cursor: pointer;
+    /* Never below 44px on touch — a mis-tap on a trading dashboard is costly. */
+    min-height: 44px;
+  }
+
+  .btn-primary {
+    background-color: var(--color-gold-500);
+    color: var(--color-base-950);
+    font-weight: 600;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-gold-400);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--color-ink-300);
+    border: 1px solid var(--color-base-700);
+  }
+
+  .btn-ghost:hover {
+    background-color: var(--color-base-850);
+    color: var(--color-ink-100);
+  }
+
+  .input {
+    width: 100%;
+    background-color: var(--color-base-850);
+    border: 1px solid var(--color-base-700);
+    border-radius: 10px;
+    padding: 0.75rem 0.875rem;
+    color: var(--color-ink-100);
+    font-size: 0.9375rem;
+    min-height: 44px;
+    transition: border-color 160ms ease, background-color 160ms ease;
+  }
+
+  .input::placeholder {
+    color: var(--color-ink-500);
+  }
+
+  .input:focus {
+    border-color: var(--color-gold-600);
+    background-color: var(--color-base-800);
+    outline: none;
+  }
+
+  .input-error {
+    border-color: var(--color-bear-500);
+  }
+
+  .label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-ink-400);
+    margin-bottom: 0.4375rem;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    padding: 0.1875rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+
+  .badge-bull {
+    background-color: color-mix(in srgb, var(--color-bull-500) 14%, transparent);
+    color: var(--color-bull-400);
+    border-color: color-mix(in srgb, var(--color-bull-500) 28%, transparent);
+  }
+
+  .badge-bear {
+    background-color: color-mix(in srgb, var(--color-bear-500) 14%, transparent);
+    color: var(--color-bear-400);
+    border-color: color-mix(in srgb, var(--color-bear-500) 28%, transparent);
+  }
+
+  .badge-neutral {
+    background-color: var(--color-base-800);
+    color: var(--color-ink-400);
+    border-color: var(--color-base-700);
+  }
+
+  .badge-gold {
+    background-color: color-mix(in srgb, var(--color-gold-500) 12%, transparent);
+    color: var(--color-gold-400);
+    border-color: color-mix(in srgb, var(--color-gold-500) 26%, transparent);
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 10px;
+    font-size: 0.9375rem;
+    color: var(--color-ink-400);
+    transition: background-color 160ms ease, color 160ms ease;
+    min-height: 44px;
+  }
+
+  .nav-link:hover {
+    background-color: var(--color-base-850);
+    color: var(--color-ink-100);
+  }
+
+  .nav-link-active {
+    background-color: color-mix(in srgb, var(--color-gold-500) 10%, transparent);
+    color: var(--color-gold-400);
+    font-weight: 500;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-ink-500);
+    font-weight: 500;
+  }
+
+  .stat-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--color-ink-100);
+    letter-spacing: -0.02em;
+  }
+
+  /* A dot that conveys state without relying on colour alone — it is paired
+     with a text label everywhere it is used, for colour-blind readers. */
+  .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+}

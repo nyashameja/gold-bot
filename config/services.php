@@ -29,7 +29,19 @@ use GoldBot\Infrastructure\Lock\MySqlNamedLock;
 use GoldBot\Infrastructure\Logging\FileLogger;
 use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Infrastructure\Logging\LogLevel;
+use GoldBot\Core\Router;
+use GoldBot\Core\View;
+use GoldBot\Http\Middleware\RateLimit;
+use GoldBot\Infrastructure\Session\DatabaseSessionHandler;
+use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
+use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
+use GoldBot\Repositories\Contracts\UserRepositoryInterface;
+use GoldBot\Repositories\MySql\MySqlAuditRepository;
+use GoldBot\Repositories\MySql\MySqlSettingsRepository;
+use GoldBot\Repositories\MySql\MySqlUserRepository;
+use GoldBot\Services\Auth\AuthService;
 use GoldBot\Support\Encryption;
+use GoldBot\Support\Security\Csrf;
 
 return static function (Container $container, Config $config, Application $app): void {
     // ── Clock ────────────────────────────────────────────────────────────────
@@ -76,4 +88,67 @@ return static function (Container $container, Config $config, Application $app):
     $container->singleton(Encryption::class, static fn (): Encryption => new Encryption(
         $config->string('app.key')
     ));
+
+    // ── Repositories ─────────────────────────────────────────────────────────
+    // Services depend on the interface; only this file names the MySQL class.
+    $container->singleton(
+        UserRepositoryInterface::class,
+        static fn (Container $c): UserRepositoryInterface => new MySqlUserRepository($c->get(Database::class))
+    );
+
+    $container->singleton(
+        AuditRepositoryInterface::class,
+        static fn (Container $c): AuditRepositoryInterface => new MySqlAuditRepository($c->get(Database::class))
+    );
+
+    $container->singleton(
+        SettingsRepositoryInterface::class,
+        static fn (Container $c): SettingsRepositoryInterface => new MySqlSettingsRepository(
+            $c->get(Database::class),
+            $c->get(CacheInterface::class)
+        )
+    );
+
+    // ── Sessions & authentication ────────────────────────────────────────────
+    $container->singleton(DatabaseSessionHandler::class, static fn (Container $c): DatabaseSessionHandler => new DatabaseSessionHandler(
+        $c->get(Database::class),
+        $c->get(ClockInterface::class),
+        $config->int('app.session.lifetime', 120)
+    ));
+
+    $container->singleton(Csrf::class, static fn (): Csrf => new Csrf());
+
+    $container->singleton(AuthService::class, static fn (Container $c): AuthService => new AuthService(
+        $c->get(UserRepositoryInterface::class),
+        $c->get(AuditRepositoryInterface::class),
+        $c->get(DatabaseSessionHandler::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class),
+        $config->int('app.auth.max_login_attempts', 5),
+        $config->int('app.auth.lockout_minutes', 15)
+    ));
+
+    // ── Views ────────────────────────────────────────────────────────────────
+    $container->singleton(View::class, static fn (): View => new View(
+        $app->basePath('resources/views')
+    ));
+
+    // ── Rate limiting ────────────────────────────────────────────────────────
+    // Constructed explicitly because its limits are configuration, not
+    // autowirable constructor types.
+    $container->singleton(RateLimit::class, static fn (Container $c): RateLimit => new RateLimit(
+        $c->get(CacheInterface::class),
+        $c->get(ClockInterface::class),
+        $config->int('app.rate_limit.max_requests', 60),
+        $config->int('app.rate_limit.window_seconds', 60)
+    ));
+
+    // ── Router ───────────────────────────────────────────────────────────────
+    $container->singleton(Router::class, static function (Container $c) use ($app): Router {
+        $router = new Router($c);
+
+        (require $app->basePath('config/routes/web.php'))($router);
+
+        return $router;
+    });
 };

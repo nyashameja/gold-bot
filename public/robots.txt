@@ -1,0 +1,3 @@
+# Internal system — not for indexing.
+User-agent: *
+Disallow: /

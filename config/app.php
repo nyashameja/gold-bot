@@ -24,6 +24,13 @@ return [
         'same_site'       => 'Lax',
     ],
 
+    // A courtesy limit and brute-force speed bump, not a security boundary —
+    // the account lockout below is the actual control (see RateLimit).
+    'rate_limit' => [
+        'max_requests'   => Env::int('RATE_LIMIT_MAX_REQUESTS', 60),
+        'window_seconds' => Env::int('RATE_LIMIT_WINDOW_SECONDS', 60),
+    ],
+
     'auth' => [
         'max_login_attempts' => Env::int('LOGIN_MAX_ATTEMPTS', 5),
         'lockout_minutes'    => Env::int('LOGIN_LOCKOUT_MINUTES', 15),

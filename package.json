@@ -1,0 +1,17 @@
+{
+    "name": "gold-bot-assets",
+    "private": true,
+    "description": "Build-time only. cPanel has no Node runtime \u2014 public/assets/{css,js} are committed and shipped.",
+    "scripts": {
+        "build": "tailwindcss -i resources/css/app.css -o public/assets/css/app.css --minify && npm run build:js",
+        "watch": "tailwindcss -i resources/css/app.css -o public/assets/css/app.css --watch",
+        "build:js": "cp node_modules/@alpinejs/csp/dist/cdn.min.js public/assets/js/alpine-csp.min.js && cp resources/js/app.js public/assets/js/app.js"
+    },
+    "devDependencies": {
+        "@tailwindcss/cli": "^4.1.0",
+        "tailwindcss": "^4.1.0"
+    },
+    "dependencies": {
+        "@alpinejs/csp": "^3.15.12"
+    }
+}

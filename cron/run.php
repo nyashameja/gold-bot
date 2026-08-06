@@ -31,6 +31,8 @@ use GoldBot\Infrastructure\Cache\CacheInterface;
 use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Infrastructure\Lock\LockInterface;
 use GoldBot\Infrastructure\Logging\LoggerInterface;
+use GoldBot\Repositories\Contracts\UserRepositoryInterface;
+use GoldBot\Services\Auth\AuthService;
 use GoldBot\Support\Encryption;
 
 if (PHP_SAPI !== 'cli') {
@@ -126,6 +128,70 @@ try {
             $out('');
             $out('Installation complete. Create your first administrator with:');
             $out('  php cron/run.php user:create   (Phase 2)');
+            break;
+
+        case 'user:create':
+            /** @var UserRepositoryInterface $users */
+            $users = $container->get(UserRepositoryInterface::class);
+            /** @var AuthService $auth */
+            $auth = $container->get(AuthService::class);
+
+            $email = $argv[2] ?? '';
+            $name = $argv[3] ?? '';
+            $role = $argv[4] ?? 'administrator';
+
+            if ($email === '' || $name === '') {
+                $err('Usage: php cron/run.php user:create <email> "<Full Name>" [role]');
+                $err('Roles: administrator, analyst, viewer');
+                exit(1);
+            }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $err(sprintf('[%s] is not a valid email address.', $email));
+                exit(1);
+            }
+
+            if (!in_array($role, ['administrator', 'analyst', 'viewer'], true)) {
+                $err(sprintf('Unknown role [%s]. Use administrator, analyst or viewer.', $role));
+                exit(1);
+            }
+
+            if ($users->emailExists($email)) {
+                $err(sprintf('A user with email [%s] already exists.', $email));
+                exit(1);
+            }
+
+            // Read the password without echoing it, and never accept it as an
+            // argument — arguments land in shell history and in `ps` output.
+            $out(sprintf('Creating %s (%s) as %s.', $name, $email, $role));
+            fwrite(STDOUT, 'Password: ');
+            shell_exec('stty -echo 2>/dev/null');
+            $password = trim((string) fgets(STDIN));
+            fwrite(STDOUT, PHP_EOL . 'Confirm password: ');
+            $confirm = trim((string) fgets(STDIN));
+            shell_exec('stty echo 2>/dev/null');
+            $out('');
+
+            if ($password === '' || $password !== $confirm) {
+                $err('Passwords did not match.');
+                exit(1);
+            }
+
+            if (strlen($password) < 12) {
+                $err('Password must be at least 12 characters.');
+                exit(1);
+            }
+
+            $userId = $users->create($email, $name, $auth->hash($password), [$role]);
+
+            $logger->info('User created via CLI', [
+                'event'   => 'user.created',
+                'user_id' => $userId,
+                'email'   => $email,
+                'role'    => $role,
+            ]);
+
+            $out(sprintf('Created user #%d. You can now sign in.', $userId));
             break;
 
         case 'check':
@@ -233,6 +299,7 @@ try {
             $out('  migrate:status     Show migration state');
             $out('  seed               Apply reference-data seeds');
             $out('  install            migrate + seed, for a fresh deployment');
+            $out('  user:create        Create a user: <email> "<Name>" [role]');
             $out('  check              Verify configuration and wiring');
             $out('  key:generate       Print a new APP_KEY');
             $out('');
