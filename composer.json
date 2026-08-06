@@ -19,7 +19,8 @@
     },
     "autoload": {
         "psr-4": {
-            "GoldBot\\": "app/"
+            "GoldBot\\": "app/",
+            "GoldBot\\Database\\": "database/"
         },
         "files": [
             "app/Support/helpers.php"
