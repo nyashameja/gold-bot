@@ -46,6 +46,19 @@ cd gold-bot
 composer install --no-dev --optimize-autoloader
 ```
 
+The kernel, `paragon/php-core`, is **inside this repository** at
+`packages/php-core` (ADR-02) and is wired up by that `composer install`. It
+needs no separate clone, no credentials and no Packagist access. You can see it
+worked:
+
+```bash
+ls -l vendor/paragon/php-core     # a symlink to ../../packages/php-core
+```
+
+**If you cannot run Composer on the host** — no SSH, no cPanel Terminal — see
+§2.4 before uploading anything. Uploading a `vendor/` built elsewhere is the
+one deployment method the kernel package breaks, and it breaks silently.
+
 ## 1.4 Configure
 
 ```bash
@@ -192,6 +205,46 @@ npm install
 npm run build      # writes public/assets/{css,js}
 git add public/assets && git commit
 ```
+
+## 2.4 The kernel package, and the one way to break it
+
+`paragon/php-core` is required from a Composer **path** repository pointing at
+`packages/php-core` inside this repo (ADR-02). Composer satisfies it by
+creating a symlink:
+
+```
+vendor/paragon/php-core -> ../../packages/php-core
+```
+
+`git pull` + `composer install` on the host — the procedure in §1.3 and §2.1 —
+handles this correctly and needs nothing extra. **Deploying by uploading files
+does not.** Extracting a ZIP through cPanel's File Manager, or copying with an
+FTP client, does not preserve symlinks: most will either skip the link or
+replace it with a small text file. Either way `vendor/paragon/php-core` stops
+being the kernel, and the site returns a 500 with `Class "Paragon\Core\…" not
+found` in `storage/logs/`. It is a confusing failure precisely because the code
+is all present on disk.
+
+If you must deploy without running Composer on the host, tell Composer to copy
+the package rather than link it. In `composer.json`:
+
+```json
+"options": { "symlink": false }
+```
+
+Then `composer update paragon/php-core --no-dev --optimize-autoloader` on the
+machine you build on, and upload `vendor/` as an ordinary directory. This is
+verified to work; the trade is that the kernel is now duplicated on disk, so
+after any change to `packages/php-core` you must re-run that command or you
+will be running the old kernel with no indication that you are.
+
+**Prefer running Composer on the host.** It is one command, and it removes this
+entire class of problem.
+
+When the kernel later moves to its own private repository — the end state
+ADR-02 describes, see `packages/php-core/README.md` — this section stops
+applying: `paragon/php-core` becomes an ordinary versioned dependency with no
+symlink involved.
 
 ---
 
