@@ -560,6 +560,87 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 
+    /** Backtest results: the equity curve and the score-band distribution. */
+    Alpine.data('backtestCharts', () => ({
+        start() {
+            if (!applyChartDefaults()) {
+                return;
+            }
+
+            const equity = JSON.parse(this.$el.dataset.equity);
+            const bands = JSON.parse(this.$el.dataset.bands);
+
+            if (this.$refs.equityChart && equity.length > 0) {
+                new Chart(this.$refs.equityChart, {
+                    type: 'line',
+                    data: {
+                        labels: equity.map((p) => p.t),
+                        datasets: [{
+                            label: 'Cumulative R',
+                            data: equity.map((p) => p.equity),
+                            borderColor: CHART_COLOURS.gold,
+                            backgroundColor: CHART_COLOURS.goldSoft,
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: true,
+                        }],
+                    },
+                    options: {
+                        scales: {
+                            x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                            y: {
+                                grid: { color: CHART_COLOURS.grid },
+                                position: 'right',
+                                // Zero on the axis: a curve auto-scaled to its
+                                // own range makes a losing run look like a
+                                // winning one with a dip.
+                                beginAtZero: true,
+                            },
+                        },
+                        plugins: { legend: { display: false } },
+                    },
+                });
+            }
+
+            if (this.$refs.bandChart && bands.length > 0) {
+                new Chart(this.$refs.bandChart, {
+                    type: 'bar',
+                    data: {
+                        labels: bands.map((b) => `${b.low}–${b.low + 4}`),
+                        datasets: [
+                            {
+                                label: 'Win rate %',
+                                data: bands.map((b) => (b.total === 0 ? 0 : (b.wins / b.total) * 100)),
+                                backgroundColor: CHART_COLOURS.gold,
+                                yAxisID: 'y',
+                            },
+                            {
+                                // Sample size shares the chart because a 100%
+                                // win rate over two trades is noise, and the
+                                // reader needs both numbers in one glance.
+                                label: 'Trades',
+                                data: bands.map((b) => b.total),
+                                type: 'line',
+                                borderColor: CHART_COLOURS.ink,
+                                borderWidth: 1,
+                                pointRadius: 2,
+                                yAxisID: 'y1',
+                            },
+                        ],
+                    },
+                    options: {
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { grid: { color: CHART_COLOURS.grid }, min: 0, max: 100, position: 'left' },
+                            y1: { grid: { display: false }, position: 'right', beginAtZero: true },
+                        },
+                        plugins: { legend: { position: 'bottom' } },
+                    },
+                });
+            }
+        },
+    }));
+
     /**
      * Signals list. No polling: a table that reorders itself under the cursor
      * while someone is reading it is worse than one that is thirty seconds

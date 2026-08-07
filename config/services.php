@@ -51,6 +51,7 @@ use GoldBot\Domain\Strategy\Strategies\SevenFourteenStrategy;
 use GoldBot\Domain\Structure\LevelBuilder;
 use GoldBot\Domain\Structure\StructureAnalyser;
 use GoldBot\Domain\Structure\SwingDetector;
+use GoldBot\Repositories\Contracts\BacktestRepositoryInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
 use GoldBot\Repositories\Contracts\IndicatorRepositoryInterface;
@@ -61,6 +62,7 @@ use GoldBot\Repositories\Contracts\PerformanceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
+use GoldBot\Repositories\MySql\MySqlBacktestRepository;
 use GoldBot\Repositories\MySql\MySqlCandleRepository;
 use GoldBot\Repositories\MySql\MySqlEconomicEventRepository;
 use GoldBot\Repositories\MySql\MySqlIndicatorRepository;
@@ -93,6 +95,8 @@ use GoldBot\Services\Signals\Filters\NewsFilter;
 use GoldBot\Services\Signals\Filters\SessionFilter;
 use GoldBot\Services\Signals\Filters\SignalFilterChain;
 use GoldBot\Services\Signals\Filters\SpreadFilter;
+use GoldBot\Services\Backtest\BacktestRunner;
+use GoldBot\Services\Backtest\ThresholdSweep;
 use GoldBot\Services\Backup\BackupService;
 use GoldBot\Services\Health\HealthChecker;
 use GoldBot\Services\Health\HealthMonitor;
@@ -739,6 +743,32 @@ return static function (Container $container, Config $config, Application $app):
         $c->get(AuthService::class),
         $c->get(AuditRepositoryInterface::class),
         $c->get(Database::class)
+    ));
+
+    // ── Backtesting (Phase 11, ADR-04) ───────────────────────────────────────
+    $container->singleton(
+        BacktestRepositoryInterface::class,
+        static fn (Container $c): BacktestRepositoryInterface => new MySqlBacktestRepository($c->get(Database::class))
+    );
+
+    // Uses the same StrategyContextBuilder and the same strategy objects as
+    // the live engine — that shared code is what makes "the backtest
+    // reproduces the live signals" a meaningful claim rather than a comparison
+    // of two implementations (ADR-03, ADR-04).
+    $container->singleton(BacktestRunner::class, static fn (Container $c): BacktestRunner => new BacktestRunner(
+        $c,
+        $c->get(StrategyRepositoryInterface::class),
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(EconomicEventRepositoryInterface::class),
+        $c->get(StrategyContextBuilder::class),
+        $c->get(PerformanceCalculator::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(ThresholdSweep::class, static fn (Container $c): ThresholdSweep => new ThresholdSweep(
+        $c->get(BacktestRunner::class),
+        $c->get(LoggerInterface::class)
     ));
 
     // ── Router ───────────────────────────────────────────────────────────────

@@ -332,8 +332,48 @@ php cron/run.php performance:show       # metrics from the stored rollups
 php cron/run.php performance:rebuild    # recompute every rollup from signals
 php cron/run.php backup:run             # take a backup now
 php cron/run.php backup:list
+php cron/run.php backup:restore <file> <target-db>
+php cron/run.php backtest:run <strategy> [--from=…] [--to=…] [--min-score=N] [--news]
+php cron/run.php backtest:sweep <strategy> [--range=50:90:5]
+php cron/run.php backtest:list
 php cron/run.php user:create <email> "<Name>" [role]
 ```
+
+## 3.10 Choosing the 714 threshold
+
+Do not pick it by intuition. That is what the backtester is for (ADR-04), and
+a number chosen without one becomes the foundation every later tuning decision
+is layered on.
+
+```bash
+php cron/run.php backtest:sweep 714 --range=50:90:5
+```
+
+Read the output with three things in mind:
+
+1. **Rows marked `*` have fewer than 30 closed trades.** They are not
+   measurements. A 100% win rate over four trades tells you nothing, and it
+   will look like the best row in the table.
+2. **The recommendation is ranked by expectancy, not net R.** Net R rewards
+   whichever threshold took the most trades, which measures activity as much
+   as edge. Expectancy is R per signal — what one more trade is worth, which
+   is the actual decision.
+3. **No recommendation is a real answer.** If the sweep declines, the period
+   does not support choosing a threshold. Get more history rather than picking
+   the least-bad row.
+
+Then apply it as a new config version, which leaves every past signal
+attributed to the rules that actually produced it (ADR-06):
+
+```bash
+php cron/run.php strategy:config 714 tuned-config.json
+```
+
+**On the news filter.** `--news` is refused over any period before the calendar
+archive begins, and the error names the date. That is deliberate: the upstream
+feed is a rolling window (ADR-15), so running the filter over unarchived
+history would apply nothing at all — and the result would look like evidence
+that the news filter costs nothing, a conclusion drawn from its absence.
 
 ## 3.9 Where the logs are
 

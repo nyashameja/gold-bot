@@ -25,6 +25,9 @@ declare(strict_types=1);
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
 use GoldBot\Console\TaskDispatcher;
+use GoldBot\Repositories\Contracts\BacktestRepositoryInterface;
+use GoldBot\Services\Backtest\BacktestRunner;
+use GoldBot\Services\Backtest\ThresholdSweep;
 use GoldBot\Services\Backup\BackupService;
 use GoldBot\Services\Health\HealthMonitor;
 use GoldBot\Services\Performance\SnapshotBuilder;
@@ -68,6 +71,74 @@ $command = $argv[1] ?? 'help';
 $config = $container->get(Config::class);
 /** @var LoggerInterface $logger */
 $logger = $container->get(LoggerInterface::class);
+
+/**
+ * Read a `--name=value` flag from argv.
+ *
+ * @param list<string> $argv
+ */
+function backtestOption(array $argv, string $name): ?string
+{
+    foreach ($argv as $argument) {
+        if (str_starts_with($argument, "--{$name}=")) {
+            return substr($argument, strlen($name) + 3);
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Translate the backtest flags into BacktestRunner options.
+ *
+ * Dates are parsed strictly and rejected rather than coerced: a typo silently
+ * becoming "today" would produce a plausible result over the wrong period,
+ * which is worse than an error because nothing about the output would look
+ * wrong.
+ *
+ * @param list<string> $argv
+ * @return array<string,mixed>
+ */
+function backtestOptions(array $argv): array
+{
+    $options = [];
+
+    foreach (['from', 'to'] as $key) {
+        $value = backtestOption($argv, $key);
+
+        if ($value === null) {
+            continue;
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value, new DateTimeZone('UTC'));
+
+        if ($date === false) {
+            fwrite(STDERR, "Not a date: --{$key}={$value}. Use YYYY-MM-DD." . PHP_EOL);
+            exit(1);
+        }
+
+        $options[$key] = $date;
+    }
+
+    $minScore = backtestOption($argv, 'min-score');
+
+    if ($minScore !== null) {
+        $options['min_score'] = (float) $minScore;
+    }
+
+    $expiry = backtestOption($argv, 'expiry-bars');
+
+    if ($expiry !== null) {
+        $options['expiry_bars'] = (int) $expiry;
+    }
+
+    // Opt-IN. A run is unfiltered unless asked otherwise, and the runner
+    // refuses the filter outright over a period the archive does not cover
+    // (ADR-15) rather than applying nothing and looking like it worked.
+    $options['news_filter'] = in_array('--news', $argv, true);
+
+    return $options;
+}
 
 $out = static fn (string $line = ''): int|false => fwrite(STDOUT, $line . PHP_EOL);
 $err = static fn (string $line): int|false => fwrite(STDERR, $line . PHP_EOL);
@@ -215,6 +286,147 @@ try {
                 } catch (Throwable $e) {
                     $err(sprintf('  %-4s FAILED: %s', $timeframe->code, $e->getMessage()));
                 }
+            }
+            break;
+
+        case 'backtest:run':
+            /** @var BacktestRunner $runner */
+            $runner = $container->get(BacktestRunner::class);
+            /** @var BacktestRepositoryInterface $backtests */
+            $backtests = $container->get(BacktestRepositoryInterface::class);
+
+            $strategyCode = $argv[2] ?? '';
+
+            if ($strategyCode === '') {
+                $err('Usage: php cron/run.php backtest:run <strategy> [--from=YYYY-MM-DD] [--to=YYYY-MM-DD]');
+                $err('                                      [--min-score=N] [--news] [--label="..."]');
+                exit(1);
+            }
+
+            $options = ['strategy' => $strategyCode] + backtestOptions($argv);
+
+            $out(sprintf('Backtesting %s…', $strategyCode));
+            $result = $runner->run($options);
+
+            /** @var \GoldBot\Domain\Performance\MetricSet $m */
+            $m = $result['metrics'];
+
+            $uuid = $backtests->store($result, null, backtestOption($argv, 'label'));
+
+            $out(sprintf(
+                '  %s → %s on %s, threshold %s',
+                $result['from']->format('Y-m-d'),
+                $result['to']->format('Y-m-d'),
+                $result['timeframe']->code,
+                number_format($result['min_score'], 1)
+            ));
+            $out(sprintf('  %d bars evaluated, %d signal(s), %d still open',
+                $result['evaluated'], count($result['trades']), $result['still_open']));
+            $out('');
+            $out(sprintf('  Closed        %d  (%dW / %dL / %dBE)', $m->total, $m->wins, $m->losses, $m->breakeven));
+            $out(sprintf('  Win rate      %s', $m->winRate === null ? '—' : number_format($m->winRate, 1) . '%'));
+            $out(sprintf('  Expectancy    %s', $m->expectancy === null ? '—' : number_format($m->expectancy, 3) . 'R'));
+            $out(sprintf('  Profit factor %s', $m->profitFactor === null ? 'undefined (no losses)' : number_format($m->profitFactor, 2)));
+            $out(sprintf('  Net           %sR', number_format($m->totalR, 2)));
+            $out(sprintf('  Max drawdown  %sR', number_format($m->maxDrawdownR, 2)));
+
+            if (!$m->isSignificant()) {
+                $out('');
+                $out('  NOTE: fewer than 30 closed trades. The rates above are not yet a');
+                $out('        measurement — do not tune a threshold on them.');
+            }
+
+            $out('');
+            $out(sprintf('  Saved as %s', $uuid));
+            break;
+
+        case 'backtest:sweep':
+            /** @var ThresholdSweep $sweep */
+            $sweep = $container->get(ThresholdSweep::class);
+
+            $strategyCode = $argv[2] ?? '';
+
+            if ($strategyCode === '') {
+                $err('Usage: php cron/run.php backtest:sweep <strategy> [--from=…] [--to=…] [--range=50:90:5]');
+                exit(1);
+            }
+
+            $range = backtestOption($argv, 'range') ?? '50:90:5';
+            [$low, $high, $step] = array_map('floatval', array_pad(explode(':', $range), 3, 5));
+
+            $thresholds = [];
+
+            for ($t = $low; $t <= $high; $t += max(0.5, $step)) {
+                $thresholds[] = $t;
+            }
+
+            $out(sprintf('Sweeping %s across %d threshold(s)…', $strategyCode, count($thresholds)));
+            $out('');
+
+            $swept = $sweep->run(['strategy' => $strategyCode] + backtestOptions($argv), $thresholds);
+
+            $out(sprintf('  %-9s %7s %7s %8s %9s %9s %9s', 'THRESHOLD', 'SIGNALS', 'CLOSED', 'WIN%', 'EXPECT', 'NET R', 'MAX DD'));
+
+            foreach ($swept['rows'] as $row) {
+                $out(sprintf(
+                    '  %-9s %7d %7d %8s %9s %9s %9s%s',
+                    number_format($row['threshold'], 1),
+                    $row['signals'],
+                    $row['closed'],
+                    $row['win_rate'] === null ? '-' : number_format($row['win_rate'], 1),
+                    $row['expectancy'] === null ? '-' : number_format($row['expectancy'], 3),
+                    number_format($row['net_r'], 2),
+                    number_format($row['max_dd'], 2),
+                    $row['significant'] ? '' : '  *'
+                ));
+            }
+
+            $out('');
+            $out('  * fewer than 30 closed trades — not yet a measurement.');
+            $out('');
+
+            if ($swept['recommended'] === null) {
+                $out('  No recommendation. No threshold had both a meaningful sample and a');
+                $out('  positive expectancy. That is a real answer: this period does not');
+                $out('  support choosing a threshold, and picking one anyway is a guess');
+                $out('  that will acquire a number and stop being questioned.');
+                break;
+            }
+
+            $best = $swept['recommended'];
+
+            $out(sprintf(
+                '  Recommended: %s — expectancy %sR over %d closed trades.',
+                number_format($best['threshold'], 1),
+                number_format((float) $best['expectancy'], 3),
+                $best['closed']
+            ));
+            $out('  Ranked by expectancy, not net R: net R rewards whichever threshold took');
+            $out('  the most trades, which measures activity as much as edge.');
+            break;
+
+        case 'backtest:list':
+            /** @var BacktestRepositoryInterface $backtests */
+            $backtests = $container->get(BacktestRepositoryInterface::class);
+            $runs = $backtests->recent(25);
+
+            if ($runs === []) {
+                $out('No backtests yet. Run backtest:run.');
+                break;
+            }
+
+            $out(sprintf('  %-38s %-10s %8s %7s %9s %9s', 'UUID', 'STRATEGY', 'MINSCORE', 'CLOSED', 'NET R', 'EXPECT'));
+
+            foreach ($runs as $run) {
+                $out(sprintf(
+                    '  %-38s %-10s %8s %7d %9s %9s',
+                    $run['uuid'],
+                    $run['strategy_code'],
+                    number_format((float) $run['min_score'], 1),
+                    (int) $run['trades_closed'],
+                    number_format((float) $run['total_r'], 2),
+                    $run['expectancy_r'] === null ? '-' : number_format((float) $run['expectancy_r'], 3)
+                ));
             }
             break;
 

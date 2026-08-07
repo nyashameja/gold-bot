@@ -150,6 +150,20 @@ All four verification criteria were executed, not asserted:
 
 **Verify:** a backtest over a period containing known live signals reproduces those signals exactly — which is simultaneously the test of the backtester and the proof that ADR-03's purity guarantee holds. Threshold sweeps produce a score-versus-outcome distribution to set the 714 threshold empirically.
 
+**Delivered.** `BacktestRunner`, `ThresholdSweep`, `backtests` / `backtest_trades`, four CLI commands and a results page.
+
+**The verification passed, with 153 assertions.** The live engine and the replay were compared bar for bar over the same period and agreed on every score and direction. The comparison is made at the EVALUATION level rather than at the published-signal level, deliberately: the live engine additionally applies the filter chain, so comparing published signals would have been a test of the filters rather than of the strategy.
+
+**A real bug in the live engine, found by building this.** Making the context builder honour the `at` it already received — so a replay cannot see past the bar it stands on — broke six existing tests. The tests were right to break. `StrategyContextBuilder` fetched the NEWEST candles and indicators on every timeframe regardless of the moment it was asked about, so whenever the engine processed a backlog (after an outage, or on first run over stored history) each backlogged M15 bar was scored against H1, H4 and D1 data *from its own future*. In steady state there is no lookahead, because the newest closed higher-timeframe bar is genuinely the current one — which is exactly why this survived nine phases. The fixture that hid it seeded both series from a common start, leaving H1 running nine days past M15; both series now end together, which is also what real data looks like.
+
+**Two lookahead tests now pin the property.** One asserts that appending future candles does not change any past evaluation — the definitive test, since a harness that fails it manufactures profitable strategies that cannot exist. The other asserts that a signal is never filled by the bar that generated it.
+
+**The sweep re-simulates rather than re-bucketing one pass.** Raising the threshold does not merely remove trades, it changes which trades happen: the runner holds one position at a time, so a marginal signal taken at 65 occupies the slot a stronger signal two bars later would have filled. Re-bucketing credits the higher threshold with trades it could not have taken, and the error flatters exactly the thresholds an operator is deciding between.
+
+**It declines to recommend on a thin sample.** Ranked by expectancy, not net R — net R rewards whichever threshold took the most trades, which measures activity as much as edge. With no threshold showing both a meaningful sample and positive expectancy, the output says so rather than naming one: "not enough data" is a real answer, and dressing it up as a recommendation is how a guess acquires a number and stops being questioned.
+
+**ADR-15 is enforced in code.** A news-filtered run over a period the calendar archive does not cover is refused with a message naming the archive start, rather than silently applying no filter and producing what would look like evidence that the news filter costs nothing.
+
 ---
 
 ## Sequencing

@@ -59,15 +59,34 @@ final class MySqlCandleRepository implements CandleRepositoryInterface
         ];
     }
 
-    public function latest(int $instrumentId, int $timeframeId, int $limit = 300, bool $closedOnly = true): CandleSeries
-    {
+    public function latest(
+        int $instrumentId,
+        int $timeframeId,
+        int $limit = 300,
+        bool $closedOnly = true,
+        ?DateTimeImmutable $asOf = null
+    ): CandleSeries {
+        $bindings = [$instrumentId, $timeframeId];
+        $bound = '';
+
+        if ($asOf !== null) {
+            // The bar must have CLOSED by $asOf, not merely opened. A bar that
+            // opened before the cutoff and closes after it contains prices the
+            // caller cannot yet know — feeding it to a backtest is lookahead
+            // bias, which manufactures profitable strategies out of nothing.
+            $bound = ' AND close_time <= ?';
+            $bindings[] = $asOf->format('Y-m-d H:i:s');
+        }
+
+        $bindings[] = max(1, $limit);
+
         $rows = $this->database->select(
             'SELECT * FROM candles
              WHERE instrument_id = ? AND timeframe_id = ?'
-            . ($closedOnly ? ' AND is_closed = 1' : '') . '
+            . ($closedOnly ? ' AND is_closed = 1' : '') . $bound . '
              ORDER BY open_time DESC
              LIMIT ?',
-            [$instrumentId, $timeframeId, max(1, $limit)]
+            $bindings
         );
 
         // Fetched newest-first so LIMIT takes the right end; CandleSeries

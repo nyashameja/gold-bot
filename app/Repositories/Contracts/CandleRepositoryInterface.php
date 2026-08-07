@@ -23,7 +23,21 @@ interface CandleRepositoryInterface
     public function upsertSeries(int $instrumentId, int $timeframeId, CandleSeries $series, string $source): array;
 
     /** The most recent $limit bars, oldest-first. */
-    public function latest(int $instrumentId, int $timeframeId, int $limit = 300, bool $closedOnly = true): CandleSeries;
+    /**
+     * The most recent candles, oldest-first.
+     *
+     * $asOf bounds the series to bars that had CLOSED by that moment. Null
+     * means "up to now", which is what the live engine wants. The backtester
+     * passes the bar it is standing on, and that one parameter is the whole
+     * defence against lookahead bias.
+     */
+    public function latest(
+        int $instrumentId,
+        int $timeframeId,
+        int $limit = 300,
+        bool $closedOnly = true,
+        ?DateTimeImmutable $asOf = null
+    ): CandleSeries;
 
     /** Bars whose open_time falls in [$from, $to], oldest-first. */
     public function between(

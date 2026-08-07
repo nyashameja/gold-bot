@@ -141,15 +141,27 @@ final class SignalEngineTest extends IntegrationTestCase
         /** @var IndicatorService $indicators */
         $indicators = $this->app->container()->get(IndicatorService::class);
 
+        // Both series END at the same moment, each with its own history behind
+        // it. Anchoring on the START instead — which this fixture used to do —
+        // left the H1 series running nine days PAST the M15 series, and every
+        // M15 bar was then evaluated against H1 data from its own future. That
+        // is what real data looks like too: you always hold more hours of H1
+        // than of M15, not more days.
+        // 08:00 UTC, so the evaluated bars land in the small hours — outside
+        // both London and New York, which the session-filter test relies on.
+        $end = new DateTimeImmutable('2026-01-15 08:00:00', new DateTimeZone('UTC'));
+
         foreach ([[$this->m15, 15], [$this->h1, 60]] as [$timeframe, $minutes]) {
-            $start = new DateTimeImmutable('2026-01-01 00:00:00', new DateTimeZone('UTC'));
             $bars = [];
             $price = 3000.0;
+            $start = $end->modify(sprintf('-%d minutes', 320 * $minutes));
 
             for ($i = 0; $i < 320; $i++) {
                 // A long steady rise, so EMA 50 sits above EMA 200 and price
-                // above both, then a brief retrace to create the pullback.
-                $step = $i >= 312 ? -1.2 : 1.0;
+                // above both, then a brief retrace to create the pullback. The
+                // retrace is on the signal timeframe only: the higher-timeframe
+                // trend must still read as up when the pullback is evaluated.
+                $step = ($timeframe->id === $this->m15->id && $i >= 312) ? -1.2 : 1.0;
 
                 $open = $price;
                 $close = $price + $step;

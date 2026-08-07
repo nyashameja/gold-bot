@@ -50,7 +50,8 @@ final class StrategyContextBuilder
         int $instrumentId,
         Timeframe $signalTimeframe,
         array $timeframeCodes,
-        DateTimeImmutable $at
+        DateTimeImmutable $at,
+        bool $historical = false
     ): ?StrategyContext {
         $series = [];
         $indicatorValues = [];
@@ -65,7 +66,19 @@ final class StrategyContextBuilder
                 continue;
             }
 
-            $candles = $this->candles->latest($instrumentId, $timeframe->id, self::WINDOW_BARS, closedOnly: true);
+            // Bounded by $at. Live callers pass "now", where this changes
+            // nothing — there are no future candles. The backtester passes the
+            // bar it is standing on, and the same code then cannot see past
+            // it. One builder serving both is what makes "the backtest
+            // reproduces the live signals" a meaningful statement rather than
+            // a comparison of two different implementations.
+            $candles = $this->candles->latest(
+                $instrumentId,
+                $timeframe->id,
+                self::WINDOW_BARS,
+                closedOnly: true,
+                asOf: $at
+            );
 
             if ($candles->isEmpty()) {
                 continue;
@@ -74,7 +87,7 @@ final class StrategyContextBuilder
             $series[$code] = $candles;
             $trends[$code] = $this->structure->trend($candles);
 
-            $latest = $this->indicators->latestFor($instrumentId, $timeframe->id);
+            $latest = $this->indicators->latestFor($instrumentId, $timeframe->id, $at);
             $indicatorValues[$code] = $latest === null ? [] : $this->extractIndicators($latest);
         }
 
@@ -84,7 +97,12 @@ final class StrategyContextBuilder
         }
 
         $signalSeries = $series[$signalTimeframe->code];
-        $snapshot = $this->snapshots->latest($instrumentId);
+
+        // Price snapshots are a live-only artefact: there is no historical
+        // quote to replay, so a backtest has no spread. Left null rather than
+        // approximated from the candle, because a made-up spread would make
+        // the spread filter look as though it had been tested when it had not.
+        $snapshot = $historical ? null : $this->snapshots->latest($instrumentId);
 
         return new StrategyContext(
             instrumentId:    $instrumentId,

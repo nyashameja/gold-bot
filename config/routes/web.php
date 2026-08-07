@@ -22,6 +22,7 @@ declare(strict_types=1);
 use GoldBot\Core\Router;
 use GoldBot\Http\Controllers\ApiUsageController;
 use GoldBot\Http\Controllers\AuditController;
+use GoldBot\Http\Controllers\BacktestController;
 use GoldBot\Http\Controllers\AuthController;
 use GoldBot\Http\Controllers\CalendarController;
 use GoldBot\Http\Controllers\HealthController;
@@ -87,6 +88,12 @@ return static function (Router $router): void {
 
         // ── 714 Method ───────────────────────────────────────────────────────
         $r->get('/method', MethodController::class, 'index', [RequireStrategiesView::class], 'method');
+
+        // ── Backtests ────────────────────────────────────────────────────────
+        // Read-only: running one is a CLI operation, because a sweep is minutes
+        // of CPU and a web request that takes minutes is one that times out.
+        $r->get('/backtests', BacktestController::class, 'index', [RequireStrategiesView::class], 'backtests');
+        $r->get('/backtests/' . $uuid, BacktestController::class, 'show', [RequireStrategiesView::class], 'backtests.show');
 
         // ── Economic Calendar ────────────────────────────────────────────────
         $r->get('/calendar', CalendarController::class, 'index', [RequireCalendarView::class], 'calendar');

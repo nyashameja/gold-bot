@@ -38,13 +38,28 @@ final class MySqlIndicatorRepository implements IndicatorRepositoryInterface
         });
     }
 
-    public function latestFor(int $instrumentId, int $timeframeId): ?array
+    public function latestFor(int $instrumentId, int $timeframeId, ?DateTimeImmutable $asOf = null): ?array
     {
+        $bindings = [$instrumentId, $timeframeId];
+        $bound = '';
+
+        if ($asOf !== null) {
+            // Joined to candles for the close time: an indicator row is keyed
+            // by the bar's OPEN, and a bar that had not closed by $asOf is not
+            // something the caller could have known (see the same reasoning in
+            // MySqlCandleRepository::latest).
+            $bound = ' AND EXISTS (
+                SELECT 1 FROM candles c
+                WHERE c.id = candle_indicators.candle_id AND c.close_time <= ?
+            )';
+            $bindings[] = $asOf->format('Y-m-d H:i:s');
+        }
+
         $row = $this->database->selectOne(
             'SELECT * FROM candle_indicators
-             WHERE instrument_id = ? AND timeframe_id = ?
+             WHERE instrument_id = ? AND timeframe_id = ?' . $bound . '
              ORDER BY open_time DESC LIMIT 1',
-            [$instrumentId, $timeframeId]
+            $bindings
         );
 
         return $row === null ? null : $this->cast($row);

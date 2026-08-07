@@ -17,7 +17,13 @@ interface IndicatorRepositoryInterface
     public function upsertMany(array $rows): int;
 
     /** @return array<string,float|null>|null Latest indicator values for a series. */
-    public function latestFor(int $instrumentId, int $timeframeId): ?array;
+    /**
+     * The newest indicator row, optionally bounded to what had closed by
+     * $asOf — see CandleRepositoryInterface::latest() for why that matters.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function latestFor(int $instrumentId, int $timeframeId, ?DateTimeImmutable $asOf = null): ?array;
 
     /** @return list<array<string,mixed>> Indicator rows in a window, oldest first. */
     public function window(int $instrumentId, int $timeframeId, int $limit = 300): array;

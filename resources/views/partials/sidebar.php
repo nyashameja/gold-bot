@@ -18,6 +18,7 @@ $sections = [
         ['label' => 'Live Market', 'path' => '/market',     'permission' => 'market.view',     'icon' => 'chart'],
         ['label' => 'Signals',    'path' => '/signals',     'permission' => 'signals.view',    'icon' => 'signal'],
         ['label' => '714 Method', 'path' => '/method',      'permission' => 'strategies.view', 'icon' => 'target'],
+        ['label' => 'Backtests',  'path' => '/backtests',   'permission' => 'strategies.view', 'icon' => 'replay'],
     ],
     'Intelligence' => [
         ['label' => 'Calendar',    'path' => '/calendar',    'permission' => 'calendar.view',    'icon' => 'calendar'],
@@ -38,6 +39,7 @@ $icons = [
     'chart'    => '<path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 5-7"/>',
     'signal'   => '<path d="M4 20V10M10 20V4M16 20v-7M22 20v-3"/>',
     'target'   => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>',
+    'replay'   => '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>',
     'calendar' => '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     'trending' => '<path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/>',
     'send'     => '<path d="m22 2-7 20-4-9-9-4z"/>',
