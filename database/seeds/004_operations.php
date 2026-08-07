@@ -12,6 +12,7 @@ declare(strict_types=1);
 use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\CleanupTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
+use GoldBot\Console\Tasks\RebuildPerformanceTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Console\Tasks\ImportPriceSnapshotTask;
 use GoldBot\Console\Tasks\DrainTelegramQueueTask;
@@ -142,6 +143,19 @@ return static function (Database $db): int {
             'cadence_minutes' => 30,
             'timeout_seconds' => 120,
             'sort_order'      => 40,
+        ],
+        [
+            'code'            => 'performance.rebuild',
+            'name'            => 'Rebuild performance snapshots',
+            'handler_class'   => RebuildPerformanceTask::class,
+            // Snapshots are already refreshed the moment a signal closes, so
+            // this nightly pass is not how the numbers stay current — it is how
+            // they stay correct. Anything that changed a closed signal outside
+            // the close path leaves the incremental refresh with no reason to
+            // have run; a full rebuild converges regardless.
+            'cadence_minutes' => 1440,
+            'timeout_seconds' => 600,
+            'sort_order'      => 60,
         ],
         [
             'code'            => 'system.cleanup',

@@ -536,6 +536,31 @@ document.addEventListener('alpine:init', () => {
     }));
 
     /**
+     * The period-by-period tabs on the Performance page.
+     *
+     * Alpine's CSP build allows no inline expressions, so the period each
+     * element belongs to is read from a data attribute rather than passed as
+     * an argument. All three tables are rendered server-side and toggled here:
+     * they are a few dozen rows, and fetching them on click would add a round
+     * trip for data the page already had.
+     */
+    Alpine.data('periodTrend', () => ({
+        active: 'daily',
+
+        select(event) {
+            this.active = event.currentTarget.dataset.period;
+        },
+
+        get isActive() {
+            return this.$el.dataset.period === this.active;
+        },
+
+        get tabClass() {
+            return this.$el.dataset.period === this.active ? 'btn-primary' : 'btn-ghost';
+        },
+    }));
+
+    /**
      * Signals list. No polling: a table that reorders itself under the cursor
      * while someone is reading it is worse than one that is thirty seconds
      * old.

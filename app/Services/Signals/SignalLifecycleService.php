@@ -45,7 +45,7 @@ final class SignalLifecycleService
     }
 
     /**
-     * @return array{checked:int,activated:int,targets:int,stopped:int,expired:int}
+     * @return array{checked:int,activated:int,targets:int,stopped:int,expired:int,closed:list<DateTimeImmutable>}
      */
     public function track(): array
     {
@@ -54,6 +54,12 @@ final class SignalLifecycleService
         $targetsHit = 0;
         $stopped = 0;
         $expired = 0;
+
+        // Close times of anything that finished in this run. Returned rather
+        // than acted on here: rebuilding a performance snapshot is reporting
+        // work, and a service that advances signal state has no business
+        // reaching into it (docs/01 §4). The task above decides what to do.
+        $closed = [];
 
         $now = $this->clock->now();
 
@@ -87,6 +93,7 @@ final class SignalLifecycleService
                 $stopped += $outcome['stopped'];
 
                 if ($state->isClosed()) {
+                    $closed[] = $candle->closeTime;
                     break;
                 }
             }
@@ -96,6 +103,8 @@ final class SignalLifecycleService
             if ($state === SignalState::Pending && $this->hasExpired($signal, $now)) {
                 if ($this->publisher->recordTransition($signalId, SignalEventType::Expired, $now)) {
                     $expired++;
+                    // An expired signal never traded, so it changes no metric.
+                    // Not recorded as a close for that reason.
                 }
             }
         }
@@ -106,6 +115,7 @@ final class SignalLifecycleService
             'targets'   => $targetsHit,
             'stopped'   => $stopped,
             'expired'   => $expired,
+            'closed'    => $closed,
         ];
     }
 

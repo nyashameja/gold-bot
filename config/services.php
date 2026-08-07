@@ -20,6 +20,7 @@ use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Console\Tasks\DrainTelegramQueueTask;
+use GoldBot\Console\Tasks\RebuildPerformanceTask;
 use GoldBot\Console\Tasks\RunStrategyAnalysisTask;
 use GoldBot\Console\Tasks\TrackSignalLifecycleTask;
 use GoldBot\Core\Application;
@@ -40,6 +41,7 @@ use GoldBot\Integrations\Telegram\TelegramClientInterface;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataMapper;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
 use GoldBot\Domain\Session\SessionResolver;
+use GoldBot\Domain\Performance\PerformanceCalculator;
 use GoldBot\Domain\Signal\SignalLifecycle;
 use GoldBot\Domain\Strategy\RuleEvaluator;
 use GoldBot\Domain\Strategy\Strategies\EmaCrossStrategy;
@@ -54,6 +56,7 @@ use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketStructureRepositoryInterface;
 use GoldBot\Repositories\Contracts\OperationsRepositoryInterface;
 use GoldBot\Repositories\Contracts\PerformanceRepositoryInterface;
+use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
 use GoldBot\Repositories\MySql\MySqlCandleRepository;
@@ -63,6 +66,7 @@ use GoldBot\Repositories\MySql\MySqlMarketReferenceRepository;
 use GoldBot\Repositories\MySql\MySqlMarketStructureRepository;
 use GoldBot\Repositories\MySql\MySqlOperationsRepository;
 use GoldBot\Repositories\MySql\MySqlPerformanceRepository;
+use GoldBot\Repositories\MySql\MySqlPerformanceSnapshotRepository;
 use GoldBot\Repositories\MySql\MySqlPriceSnapshotRepository;
 use GoldBot\Services\Dashboard\ApiUsageService;
 use GoldBot\Services\Dashboard\CalendarBoardService;
@@ -87,6 +91,7 @@ use GoldBot\Services\Signals\Filters\NewsFilter;
 use GoldBot\Services\Signals\Filters\SessionFilter;
 use GoldBot\Services\Signals\Filters\SignalFilterChain;
 use GoldBot\Services\Signals\Filters\SpreadFilter;
+use GoldBot\Services\Performance\SnapshotBuilder;
 use GoldBot\Services\Signals\SignalEngine;
 use GoldBot\Services\Signals\SignalLifecycleService;
 use GoldBot\Services\Signals\SignalPublisher;
@@ -509,6 +514,7 @@ return static function (Container $container, Config $config, Application $app):
 
     $container->singleton(TrackSignalLifecycleTask::class, static fn (Container $c): TrackSignalLifecycleTask => new TrackSignalLifecycleTask(
         $c->get(SignalLifecycleService::class),
+        $c->get(SnapshotBuilder::class),
         $c->get(LoggerInterface::class)
     ));
 
@@ -554,6 +560,34 @@ return static function (Container $container, Config $config, Application $app):
         $config->array('market.fetch.settle_seconds', [])
     ));
 
+    // ── Performance rollups (Phase 9) ────────────────────────────────────────
+    // The calculator is stateless and pure, so one instance serves the live
+    // dashboard and the nightly builder alike — which is the point: a single
+    // implementation of every metric definition.
+    $container->singleton(
+        PerformanceCalculator::class,
+        static fn (): PerformanceCalculator => new PerformanceCalculator()
+    );
+
+    $container->singleton(
+        PerformanceSnapshotRepositoryInterface::class,
+        static fn (Container $c): PerformanceSnapshotRepositoryInterface => new MySqlPerformanceSnapshotRepository(
+            $c->get(Database::class)
+        )
+    );
+
+    $container->singleton(SnapshotBuilder::class, static fn (Container $c): SnapshotBuilder => new SnapshotBuilder(
+        $c->get(PerformanceSnapshotRepositoryInterface::class),
+        $c->get(PerformanceCalculator::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(RebuildPerformanceTask::class, static fn (Container $c): RebuildPerformanceTask => new RebuildPerformanceTask(
+        $c->get(SnapshotBuilder::class),
+        $c->get(LoggerInterface::class)
+    ));
+
     // ── Dashboard read side (Phase 8) ────────────────────────────────────────
     // Read-only repositories, separate from the writers on the cron hot path.
     $container->singleton(
@@ -596,6 +630,8 @@ return static function (Container $container, Config $config, Application $app):
     $container->singleton(PerformanceService::class, static fn (Container $c): PerformanceService => new PerformanceService(
         $c->get(PerformanceRepositoryInterface::class),
         $c->get(StrategyRepositoryInterface::class),
+        $c->get(PerformanceCalculator::class),
+        $c->get(PerformanceSnapshotRepositoryInterface::class),
         $c->get(ClockInterface::class)
     ));
 

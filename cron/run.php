@@ -25,6 +25,7 @@ declare(strict_types=1);
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
 use GoldBot\Console\TaskDispatcher;
+use GoldBot\Services\Performance\SnapshotBuilder;
 use GoldBot\Core\Database;
 use GoldBot\Database\Migrator;
 use GoldBot\Database\Seeder;
@@ -33,6 +34,9 @@ use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Infrastructure\Lock\LockInterface;
 use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
+use GoldBot\Domain\Performance\PeriodType;
+use GoldBot\Domain\Performance\SnapshotScope;
+use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
 use GoldBot\Services\MarketData\CandleIngestService;
@@ -209,6 +213,65 @@ try {
                 } catch (Throwable $e) {
                     $err(sprintf('  %-4s FAILED: %s', $timeframe->code, $e->getMessage()));
                 }
+            }
+            break;
+
+        case 'performance:rebuild':
+            /** @var SnapshotBuilder $builder */
+            $builder = $container->get(SnapshotBuilder::class);
+
+            $out('Rebuilding performance snapshots from the traded record…');
+            $result = $builder->rebuildAll();
+
+            if ($result['snapshots'] === 0) {
+                $out('  No closed signals to measure yet.');
+                break;
+            }
+
+            $out(sprintf(
+                '  %d snapshot(s) across %d period(s), %s to %s.',
+                $result['snapshots'],
+                $result['periods'],
+                substr((string) $result['from'], 0, 10),
+                substr((string) $result['to'], 0, 10)
+            ));
+            break;
+
+        case 'performance:show':
+            /** @var PerformanceSnapshotRepositoryInterface $snapshots */
+            $snapshots = $container->get(PerformanceSnapshotRepositoryInterface::class);
+
+            $period = PeriodType::tryFrom(strtoupper($argv[2] ?? 'ALL_TIME'));
+
+            if ($period === null) {
+                $err('Usage: php cron/run.php performance:show [DAILY|WEEKLY|MONTHLY|ALL_TIME]');
+                $exit = 1;
+                break;
+            }
+
+            $series = $snapshots->series($period, SnapshotScope::overall(), 30);
+
+            if ($series === []) {
+                $out('No snapshots. Run performance:rebuild first.');
+                break;
+            }
+
+            $out(sprintf('%s — overall, most recent %d period(s)', $period->label(), count($series)));
+            $out(sprintf('  %-12s %5s %5s %5s %8s %9s %9s', 'PERIOD', 'N', 'W', 'L', 'WIN%', 'NET R', 'MAX DD'));
+
+            foreach ($series as $row) {
+                $m = $row['metrics'];
+
+                $out(sprintf(
+                    '  %-12s %5d %5d %5d %8s %9s %9s',
+                    substr($row['start'], 0, 10),
+                    $m->total,
+                    $m->wins,
+                    $m->losses,
+                    $m->winRate === null ? '-' : number_format($m->winRate, 1),
+                    number_format($m->totalR, 2),
+                    number_format($m->maxDrawdownR, 2)
+                ));
             }
             break;
 

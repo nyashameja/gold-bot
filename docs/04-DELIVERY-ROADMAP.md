@@ -109,6 +109,16 @@ Four bugs were found by this phase rather than written into it, three of them pr
 
 **Verify:** metrics computed from a seeded set of closed signals match hand-calculated expected values — including the edge cases that are usually wrong: zero losses (profit factor undefined, not infinite), zero signals in a period, and breakeven outcomes excluded from both win and loss counts.
 
+**Delivered.** `performance_snapshots`, the builder, the nightly rebuild, recompute on close, and `performance:rebuild` / `performance:show`. All three named edge cases are covered by tests that assert hand-computed literals with the working shown, not whatever the code happens to return.
+
+**One implementation of every metric.** The obvious build — SQL aggregates for the snapshots, PHP arithmetic for the live page — gives two implementations of the same definitions, and they drift. The symptom is a Performance page that disagrees with the Overview tile about the win rate, which discredits both numbers and every number beside them. So `PerformanceCalculator` is pure, has no I/O, and is used by both paths; a test asserts the incremental and full-rebuild results are byte-identical.
+
+**Snapshots are a projection, never the source of truth.** Nothing adjusts a running total: a period is recomputed from `signals` and written whole. Signals change after they close — a late tick resolves one, an operator cancels another, a corrected candle moves an exit — and an incrementally maintained aggregate drifts with nothing able to detect it, because the totals still look plausible. Recomputing converges: three rebuilds produce the same rows as one, and a rebuild deletes scopes whose signals are gone rather than leaving an orphan asserting a result. Dropping the table costs a rebuild and no information, which is the property that makes it safe to read them as though they were the record.
+
+**Why the table exists at all**, given Phase 8 already computed these figures live: not speed. "How did each of the last twenty weeks go?" means measuring twenty separate windows, and drawdown and streaks do not add up across period boundaries, so it cannot be assembled from one scan however fast that scan is. The Period-by-period panel reads the rollups and deliberately does NOT fall back to computing them live when none exist — silently doing the expensive thing would hide a scheduler that has stopped.
+
+**Every rate is nullable, end to end.** A 0% win rate and a win rate that does not exist yet are different claims about a strategy, and storing the second as the first is a lie about something nobody measured. A round-trip test asserts the distinction survives the database.
+
 ---
 
 ## Phase 10 — Health, Operations & Hardening

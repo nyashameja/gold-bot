@@ -5,17 +5,28 @@ declare(strict_types=1);
 namespace GoldBot\Services\Dashboard;
 
 use DateTimeImmutable;
+use DateTimeZone;
+use GoldBot\Domain\Performance\PerformanceCalculator;
+use GoldBot\Domain\Performance\PeriodType;
+use GoldBot\Domain\Performance\SnapshotScope;
+use GoldBot\Domain\Performance\TradeOutcome;
 use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\PerformanceRepositoryInterface;
+use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 
 /**
- * Performance metrics, derived from the traded record.
+ * What the Performance page reads.
  *
- * The arithmetic lives here rather than in SQL for the path-dependent
- * statistics — drawdown, streaks — because they cannot be computed from
- * grouped totals at all: they depend on the ORDER outcomes arrived in, and a
- * GROUP BY has thrown that away by the time it returns.
+ * The metric arithmetic is NOT here. It lives in PerformanceCalculator, which
+ * the nightly snapshot builder uses too — one implementation of every
+ * definition, so the live page and the stored rollups cannot disagree. Two
+ * implementations of "win rate" is how a dashboard ends up contradicting
+ * itself, and a Performance page that disagrees with the Overview tile
+ * discredits both numbers and every number beside them.
+ *
+ * This class assembles: it fetches, delegates the sums, and adds the
+ * breakdowns and score bands that only the page needs.
  *
  * Everything is expressed in R, the risk multiple. A dashboard that reports
  * pips flatters wide-stop trades and punishes tight-stop ones; R is the only
@@ -26,6 +37,8 @@ final class PerformanceService
     public function __construct(
         private readonly PerformanceRepositoryInterface $performance,
         private readonly StrategyRepositoryInterface $strategies,
+        private readonly PerformanceCalculator $calculator,
+        private readonly PerformanceSnapshotRepositoryInterface $snapshots,
         private readonly ClockInterface $clock
     ) {
     }
@@ -47,7 +60,6 @@ final class PerformanceService
             $strategyId = $strategy === null ? null : (int) $strategy['id'];
         }
 
-        $summary = $this->performance->summary($since, $now, $strategyId);
         $sequence = $this->performance->closedSequence($since, $now, $strategyId);
 
         return [
@@ -61,7 +73,7 @@ final class PerformanceService
                 static fn (array $s): array => ['value' => (string) $s['code'], 'label' => (string) $s['name']],
                 $this->strategies->enabled()
             ),
-            'summary'   => $this->deriveMetrics($summary, $sequence),
+            'summary'   => $this->metricsFor($sequence),
             'equity'    => $this->equityCurve($sequence),
             'states'    => $this->performance->stateCounts($since, $now),
             'targets'   => $this->targetRates($since, $now),
@@ -74,7 +86,8 @@ final class PerformanceService
                 'weekday'   => $this->withRates($this->performance->breakdown('weekday', $since, $now, $strategyId)),
                 'month'     => $this->withRates($this->performance->breakdown('month', $since, $now, $strategyId)),
             ],
-            'age' => DataAge::since($this->lastClose($sequence), $now, 86400)->toArray(),
+            'trend' => $this->trend($strategyId),
+            'age'   => DataAge::since($this->lastClose($sequence), $now, 86400)->toArray(),
         ];
     }
 
@@ -89,131 +102,120 @@ final class PerformanceService
         $now = $this->clock->now();
         $since = $now->modify("-{$days} days");
 
-        return $this->deriveMetrics(
-            $this->performance->summary($since, $now),
-            $this->performance->closedSequence($since, $now)
+        return $this->metricsFor($this->performance->closedSequence($since, $now));
+    }
+
+    /**
+     * The metrics for a fetched sequence.
+     *
+     * The repository's summary aggregates are deliberately NOT used for the
+     * headline figures: they would be a second implementation of the same
+     * definitions, computed in SQL, and the two would drift. The sequence is
+     * already loaded for the equity curve, so measuring it costs nothing extra.
+     *
+     * @param list<array<string,mixed>> $sequence
+     * @return array<string,mixed>
+     */
+    private function metricsFor(array $sequence): array
+    {
+        return $this->calculator->calculate($this->outcomes($sequence))->toArray();
+    }
+
+    /**
+     * @param list<array<string,mixed>> $sequence
+     * @return list<TradeOutcome>
+     */
+    private function outcomes(array $sequence): array
+    {
+        $utc = new DateTimeZone('UTC');
+
+        return array_map(
+            static fn (array $row): TradeOutcome => new TradeOutcome(
+                new DateTimeImmutable((string) $row['closed_at'], $utc),
+                (float) $row['realised_r']
+            ),
+            $sequence
         );
     }
 
     /**
-     * @param array<string,mixed> $summary
-     * @param list<array<string,mixed>> $sequence
+     * Period-by-period metrics, read from the stored rollups.
+     *
+     * This is the one thing the snapshot table exists for. Every other figure
+     * on this page is computed live from `signals` and would be no slower that
+     * way — but "how did each of the last twenty weeks go?" means measuring
+     * twenty separate windows, and drawdown and streaks do not add up across
+     * period boundaries, so it cannot be assembled from a single scan. Reading
+     * twenty precomputed rows can.
+     *
+     * Returns an empty series rather than falling back to a live computation
+     * when nothing has been built: silently doing the expensive thing would
+     * hide a scheduler that has stopped running the rebuild.
+     *
      * @return array<string,mixed>
      */
-    private function deriveMetrics(array $summary, array $sequence): array
+    private function trend(?int $strategyId): array
     {
-        $total = (int) $summary['total'];
-        $wins = (int) $summary['wins'];
-        $losses = (int) $summary['losses'];
-        $grossProfit = (float) $summary['gross_profit_r'];
-        $grossLoss = (float) $summary['gross_loss_r'];
+        $scope = $strategyId === null
+            ? SnapshotScope::overall()
+            : SnapshotScope::forStrategy($strategyId);
 
-        $winRate = $total === 0 ? null : round(($wins / $total) * 100, 1);
+        $periods = [];
 
-        // Expectancy: the average R per signal. The single most useful number
-        // on this page, because it answers "is running this worth it?" in a
-        // way win rate alone never can — a 40% win rate at 3R is excellent.
-        $expectancy = $total === 0 ? null : round((float) $summary['net_r'] / $total, 3);
-
-        // Profit factor is undefined with no losses, not infinite. Reporting
-        // a placeholder large number would make an untested strategy look
-        // like the best one on the page.
-        $profitFactor = $grossLoss > 0.0 ? round($grossProfit / $grossLoss, 2) : null;
-
-        return [
-            'total'          => $total,
-            'wins'           => $wins,
-            'losses'         => $losses,
-            'breakeven'      => (int) $summary['breakeven'],
-            'win_rate'       => $winRate,
-            'net_r'          => round((float) $summary['net_r'], 2),
-            'gross_profit_r' => round($grossProfit, 2),
-            'gross_loss_r'   => round($grossLoss, 2),
-            'expectancy_r'   => $expectancy,
-            'profit_factor'  => $profitFactor,
-            'best_r'         => $summary['best_r'] === null ? null : round((float) $summary['best_r'], 2),
-            'worst_r'        => $summary['worst_r'] === null ? null : round((float) $summary['worst_r'], 2),
-            'avg_win_r'      => $summary['avg_win_r'] === null ? null : round((float) $summary['avg_win_r'], 2),
-            'avg_loss_r'     => $summary['avg_loss_r'] === null ? null : round((float) $summary['avg_loss_r'], 2),
-            'avg_score'      => $summary['avg_score'] === null ? null : round((float) $summary['avg_score'], 1),
-            ...$this->pathMetrics($sequence),
-        ];
-    }
-
-    /**
-     * Drawdown and streaks — the statistics a grouped query cannot produce.
-     *
-     * Max drawdown is measured in R from the running peak of the equity
-     * curve, which is the figure that tells an operator what this system has
-     * actually put them through, as opposed to where it finished.
-     *
-     * @param list<array<string,mixed>> $sequence
-     * @return array{max_drawdown_r:float,longest_win_streak:int,longest_loss_streak:int,current_streak:int}
-     */
-    private function pathMetrics(array $sequence): array
-    {
-        $equity = 0.0;
-        $peak = 0.0;
-        $maxDrawdown = 0.0;
-
-        $winStreak = 0;
-        $lossStreak = 0;
-        $longestWin = 0;
-        $longestLoss = 0;
-
-        foreach ($sequence as $row) {
-            $r = (float) $row['realised_r'];
-            $equity += $r;
-            $peak = max($peak, $equity);
-            $maxDrawdown = max($maxDrawdown, $peak - $equity);
-
-            if ($r > 0.0) {
-                $winStreak++;
-                $lossStreak = 0;
-                $longestWin = max($longestWin, $winStreak);
-            } elseif ($r < 0.0) {
-                $lossStreak++;
-                $winStreak = 0;
-                $longestLoss = max($longestLoss, $lossStreak);
-            } else {
-                // A breakeven neither extends nor breaks a streak — it is not
-                // an outcome in the direction sense.
-                continue;
-            }
+        foreach ([PeriodType::Daily, PeriodType::Weekly, PeriodType::Monthly] as $period) {
+            $periods[strtolower($period->value)] = array_map(
+                static fn (array $row): array => [
+                    'start'   => $row['start'],
+                    'label'   => $period->format(new DateTimeImmutable($row['start'], new DateTimeZone('UTC'))),
+                    'metrics' => $row['metrics']->toArray(),
+                ],
+                $this->snapshots->series($period, $scope, 30)
+            );
         }
 
+        $allTime = $this->snapshots->find(
+            PeriodType::AllTime,
+            PeriodType::AllTime->startFor($this->clock->now()),
+            $scope
+        );
+
         return [
-            'max_drawdown_r'      => round($maxDrawdown, 2),
-            'longest_win_streak'  => $longestWin,
-            'longest_loss_streak' => $longestLoss,
-            // Positive is a winning run, negative a losing one.
-            'current_streak'      => $winStreak > 0 ? $winStreak : -$lossStreak,
+            'periods'   => $periods,
+            'all_time'  => $allTime === null ? null : $allTime['metrics']->toArray(),
+            'built_at'  => $allTime['computed_at'] ?? null,
+            'available' => $this->snapshots->count() > 0,
         ];
     }
 
     /**
-     * The cumulative R curve, one point per closed signal.
+     * The cumulative R curve.
+     *
+     * The running total comes from the calculator, so the last point of this
+     * curve and the net R in the tiles above it are the same arithmetic. The
+     * signal uuid is stitched back on afterwards, because the chart links each
+     * point to the signal that produced it and the domain has no business
+     * knowing about that. The indices line up because the repository already
+     * returns the sequence ordered by close time and PHP's sort is stable, so
+     * the calculator's ordering is a no-op on this input.
      *
      * @param list<array<string,mixed>> $sequence
      * @return list<array{t:string,equity:float,r:float,uuid:string}>
      */
     private function equityCurve(array $sequence): array
     {
-        $equity = 0.0;
-        $points = [];
+        $points = $this->calculator->equityCurve($this->outcomes($sequence));
+        $curve = [];
 
-        foreach ($sequence as $row) {
-            $equity = round($equity + (float) $row['realised_r'], 3);
-
-            $points[] = [
-                't'      => (string) $row['closed_at'],
-                'equity' => $equity,
-                'r'      => (float) $row['realised_r'],
-                'uuid'   => (string) $row['uuid'],
+        foreach ($points as $index => $point) {
+            $curve[] = [
+                't'      => $point['at'],
+                'equity' => $point['equity'],
+                'r'      => $point['r'],
+                'uuid'   => (string) ($sequence[$index]['uuid'] ?? ''),
             ];
         }
 
-        return $points;
+        return $curve;
     }
 
     /**

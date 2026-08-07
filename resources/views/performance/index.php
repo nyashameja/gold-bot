@@ -246,6 +246,108 @@ $hasData = $s['total'] > 0;
         </div>
     <?php endif; ?>
 
+    <!-- Period trend, from the stored rollups -->
+    <div class="card">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-750 px-5 py-4">
+            <div>
+                <h3 class="text-sm font-semibold text-ink-100">Period by period</h3>
+                <p class="mt-0.5 text-xs text-ink-500">
+                    Read from the nightly rollups. Drawdown and streaks do not add up across period
+                    boundaries, so each row is measured over its own window rather than sliced out of
+                    the totals above.
+                </p>
+            </div>
+            <?php if ($report['trend']['built_at'] !== null): ?>
+                <span class="num text-xs text-ink-500">
+                    built <?= e(substr((string) $report['trend']['built_at'], 0, 16)) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <?php if (!$report['trend']['available']): ?>
+            <?= $this->partial('partials.empty', [
+                'message' => 'No snapshots have been built',
+                'detail'  => 'Run php cron/run.php performance:rebuild, or wait for the nightly task. '
+                    . 'This panel deliberately does not fall back to computing the periods live — that '
+                    . 'would hide a scheduler that has stopped.',
+                'icon'    => '<path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/>',
+            ]) ?>
+        <?php else: ?>
+            <div x-data="periodTrend" class="p-4">
+                <div class="mb-4 flex flex-wrap gap-2">
+                    <?php foreach (['daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly'] as $key => $label): ?>
+                        <button type="button"
+                                class="btn"
+                                :class="tabClass"
+                                data-period="<?= e($key) ?>"
+                                @click="select">
+                            <?= e($label) ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php foreach ($report['trend']['periods'] as $key => $rows): ?>
+                    <div x-show="isActive" data-period="<?= e($key) ?>" x-cloak>
+                        <?php if ($rows === []): ?>
+                            <p class="px-2 py-6 text-center text-sm text-ink-500">
+                                No <?= e($key) ?> period has closed a signal yet.
+                            </p>
+                        <?php else: ?>
+                            <div class="table-scroll">
+                                <table class="w-full min-w-[720px] text-sm">
+                                    <thead>
+                                        <tr class="border-b border-base-750 text-left text-xs uppercase tracking-wider text-ink-500">
+                                            <th class="px-4 py-2.5 font-medium">Period</th>
+                                            <th class="px-4 py-2.5 text-right font-medium">N</th>
+                                            <th class="px-4 py-2.5 text-right font-medium">W / L / BE</th>
+                                            <th class="px-4 py-2.5 text-right font-medium">Win %</th>
+                                            <th class="px-4 py-2.5 text-right font-medium">Net R</th>
+                                            <th class="px-4 py-2.5 text-right font-medium">Max DD</th>
+                                            <th class="px-4 py-2.5 text-right font-medium">Streaks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach (array_reverse($rows) as $row): ?>
+                                            <?php $m = $row['metrics']; ?>
+                                            <tr class="border-b border-base-800 last:border-0">
+                                                <td class="px-4 py-2.5 text-ink-200"><?= e($row['label']) ?></td>
+                                                <td class="num px-4 py-2.5 text-right text-ink-400">
+                                                    <?= e((string) $m['total']) ?>
+                                                    <?php if (!$m['significant']): ?>
+                                                        <span class="text-ink-500"
+                                                              title="Too few signals for the rates beside this to mean much.">*</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="num px-4 py-2.5 text-right text-ink-400">
+                                                    <?= e($m['wins'] . ' / ' . $m['losses'] . ' / ' . $m['breakeven']) ?>
+                                                </td>
+                                                <td class="num px-4 py-2.5 text-right text-ink-400">
+                                                    <?= $m['win_rate'] === null ? '—' : e(number_format($m['win_rate'], 1)) ?>
+                                                </td>
+                                                <td class="num px-4 py-2.5 text-right <?= $m['net_r'] > 0 ? 'text-bull-400' : ($m['net_r'] < 0 ? 'text-bear-400' : 'text-ink-400') ?>">
+                                                    <?= e(($m['net_r'] > 0 ? '+' : '') . number_format($m['net_r'], 2)) ?>
+                                                </td>
+                                                <td class="num px-4 py-2.5 text-right text-ink-500">
+                                                    <?= e(number_format($m['max_drawdown_r'], 2)) ?>
+                                                </td>
+                                                <td class="num px-4 py-2.5 text-right text-ink-500">
+                                                    <?= e($m['longest_win_streak'] . 'W / ' . $m['longest_loss_streak'] . 'L') ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="px-4 pt-3 text-xs text-ink-500">
+                                * fewer than 30 signals — the rates beside it are not yet a measurement.
+                            </p>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
     <!-- State counts, including the excluded ones -->
     <div class="card">
         <div class="border-b border-base-750 px-5 py-4">
