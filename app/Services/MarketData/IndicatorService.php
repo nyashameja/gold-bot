@@ -12,10 +12,10 @@ use GoldBot\Domain\Indicators\Rsi;
 use GoldBot\Domain\Indicators\VolumeSma;
 use GoldBot\Domain\Market\CandleSeries;
 use GoldBot\Domain\Market\Timeframe;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\IndicatorRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Computes and persists indicators for closed candles.

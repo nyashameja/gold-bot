@@ -6,13 +6,13 @@ namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Performance\MetricSet;
 use GoldBot\Domain\Performance\PeriodType;
 use GoldBot\Domain\Performance\SnapshotScope;
 use GoldBot\Domain\Performance\TradeOutcome;
 use GoldBot\Domain\Signal\SignalState;
 use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
+use Paragon\Core\Database;
 
 final class MySqlPerformanceSnapshotRepository implements PerformanceSnapshotRepositoryInterface
 {

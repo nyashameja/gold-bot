@@ -234,11 +234,11 @@ final class CalendarMappingTest extends TestCase
     {
         // toEvents() is pure, so the collaborators are never reached.
         return new \GoldBot\Integrations\Calendar\Fred\FredProvider(
-            new \GoldBot\Infrastructure\Http\HttpClient(new NullTestLogger()),
+            new \Paragon\Core\Http\HttpClient(new NullTestLogger()),
             $this->hasher,
             new \GoldBot\Infrastructure\Http\ApiBudget(
-                new \GoldBot\Core\Database([]),
-                new \GoldBot\Infrastructure\Clock\SystemClock(),
+                new \Paragon\Core\Database([]),
+                new \Paragon\Core\Clock\SystemClock(),
                 new NullTestLogger()
             ),
             new NullTestLogger(),

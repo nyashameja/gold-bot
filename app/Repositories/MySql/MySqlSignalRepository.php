@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Market\Enums\Direction;
 use GoldBot\Domain\Signal\SignalEventType;
 use GoldBot\Domain\Signal\SignalLifecycle;
 use GoldBot\Domain\Signal\SignalState;
 use GoldBot\Domain\Strategy\SignalResult;
-use GoldBot\Support\Uuid;
+use Paragon\Core\Database;
+use Paragon\Core\Support\Uuid;
 
 final class MySqlSignalRepository implements \GoldBot\Repositories\Contracts\SignalRepositoryInterface
 {

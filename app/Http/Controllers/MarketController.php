@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace GoldBot\Http\Controllers;
 
-use GoldBot\Core\Controller;
-use GoldBot\Core\HttpException;
-use GoldBot\Core\JsonResponse;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Core\View;
 use GoldBot\Services\Auth\AuthService;
 use GoldBot\Services\Dashboard\MarketBoardService;
+use Paragon\Core\HttpException;
+use Paragon\Core\JsonResponse;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
+use Paragon\Core\View;
 
 /**
  * Live Market.

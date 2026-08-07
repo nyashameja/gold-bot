@@ -9,12 +9,12 @@ declare(strict_types=1);
  * vendor all sit above it (docs/03 §1).
  */
 
-use GoldBot\Core\Application;
-use GoldBot\Core\ErrorHandler;
-use GoldBot\Core\HttpException;
-use GoldBot\Core\Request;
-use GoldBot\Core\Router;
-use GoldBot\Core\View;
+use Paragon\Core\Application;
+use Paragon\Core\ErrorHandler;
+use Paragon\Core\HttpException;
+use Paragon\Core\Request;
+use Paragon\Core\Router;
+use Paragon\Core\View;
 
 /**
  * Let PHP's built-in server serve existing files itself.

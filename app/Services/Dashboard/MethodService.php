@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace GoldBot\Services\Dashboard;
 
 use GoldBot\Domain\Strategy\StrategyConfig;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
 
 /**
  * The 714 Method page: the rubric as it is actually configured.

@@ -8,9 +8,20 @@
          failOnWarning="true"
          colors="true">
     <testsuites>
-        <!-- Unit: pure domain logic. No database, no network, no clock. -->
+        <!--
+            Unit: pure domain logic. No database, no network, no clock.
+
+            The kernel's own tests run here rather than only under the package's
+            phpunit.xml. paragon/php-core is consumed as a path repository
+            (ADR-02), so a kernel change lands in this working tree and must
+            break this run — not one somebody remembers to do separately. When
+            the package moves to its own repository, drop the second directory:
+            Gold Bot pins a version at that point, and the kernel is tested
+            where it lives.
+        -->
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+            <directory>packages/php-core/tests</directory>
         </testsuite>
         <!-- Integration: repositories, migrations, ingest. Needs a test database. -->
         <testsuite name="Integration">
@@ -24,6 +35,7 @@
     <source restrictNotices="true" restrictWarnings="true">
         <include>
             <directory>app</directory>
+            <directory>packages/php-core/src</directory>
         </include>
     </source>
 </phpunit>

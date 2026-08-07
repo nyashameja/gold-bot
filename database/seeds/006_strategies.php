@@ -11,9 +11,9 @@ declare(strict_types=1);
  * pointer, leaving every past signal attributable to what actually produced it.
  */
 
-use GoldBot\Core\Database;
 use GoldBot\Domain\Strategy\Strategies\EmaCrossStrategy;
 use GoldBot\Domain\Strategy\Strategies\SevenFourteenStrategy;
+use Paragon\Core\Database;
 
 return static function (Database $db): int {
     $affected = 0;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace GoldBot\Services\Dashboard;
 
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
 
 /**
  * The Overview page — the one screen that answers "is it working, and how is

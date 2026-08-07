@@ -8,11 +8,11 @@ use DateTimeImmutable;
 use DateTimeZone;
 use GoldBot\Domain\Calendar\EconomicEvent;
 use GoldBot\Domain\Calendar\EventImpact;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
 use GoldBot\Services\Calendar\CalendarService;
 use GoldBot\Services\Calendar\NewsBlackoutService;
+use Paragon\Core\Clock\ClockInterface;
 
 /**
  * The Economic Calendar page.

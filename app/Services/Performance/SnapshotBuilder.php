@@ -8,9 +8,9 @@ use DateTimeImmutable;
 use GoldBot\Domain\Performance\PerformanceCalculator;
 use GoldBot\Domain\Performance\PeriodType;
 use GoldBot\Domain\Performance\SnapshotScope;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Builds the performance rollups (docs/02 §9).

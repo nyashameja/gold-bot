@@ -6,9 +6,9 @@ namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Market\PriceSnapshot;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
+use Paragon\Core\Database;
 
 final class MySqlPriceSnapshotRepository implements PriceSnapshotRepositoryInterface
 {

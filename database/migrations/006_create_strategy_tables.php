@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Strategies and signals (docs/02 §7).
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): void {
     // handler_class maps a row to its PHP implementation, so registering a

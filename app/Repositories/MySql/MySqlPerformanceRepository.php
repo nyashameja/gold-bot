@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Signal\SignalState;
 use GoldBot\Repositories\Contracts\PerformanceRepositoryInterface;
-use GoldBot\Support\Uuid;
 use InvalidArgumentException;
+use Paragon\Core\Database;
+use Paragon\Core\Support\Uuid;
 
 final class MySqlPerformanceRepository implements PerformanceRepositoryInterface
 {

@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Telegram delivery (docs/02 §8).
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): void {
     // Subscription flags are separate so operational alerts can go to a private

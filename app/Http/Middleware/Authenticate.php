@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace GoldBot\Http\Middleware;
 
 use Closure;
-use GoldBot\Core\Config;
-use GoldBot\Core\JsonResponse;
-use GoldBot\Core\RedirectResponse;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
 use GoldBot\Services\Auth\AuthService;
+use Paragon\Core\Config;
+use Paragon\Core\JsonResponse;
+use Paragon\Core\MiddlewareInterface;
+use Paragon\Core\RedirectResponse;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
 
 final class Authenticate implements MiddlewareInterface
 {

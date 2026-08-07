@@ -19,11 +19,10 @@ declare(strict_types=1);
  * through a different route.
  */
 
-use GoldBot\Core\Router;
 use GoldBot\Http\Controllers\ApiUsageController;
 use GoldBot\Http\Controllers\AuditController;
-use GoldBot\Http\Controllers\BacktestController;
 use GoldBot\Http\Controllers\AuthController;
+use GoldBot\Http\Controllers\BacktestController;
 use GoldBot\Http\Controllers\CalendarController;
 use GoldBot\Http\Controllers\HealthController;
 use GoldBot\Http\Controllers\MarketController;
@@ -54,6 +53,7 @@ use GoldBot\Http\Middleware\SecurityHeaders;
 use GoldBot\Http\Middleware\ShareViewData;
 use GoldBot\Http\Middleware\StartSession;
 use GoldBot\Http\Middleware\VerifyCsrf;
+use Paragon\Core\Router;
 
 return static function (Router $router): void {
     $base = [SecurityHeaders::class, StartSession::class, ShareViewData::class];

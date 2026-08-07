@@ -62,6 +62,19 @@ There are three ways to get it, and only one of them is right:
 
 **If you would rather not pay the extraction cost now,** the fallback is to copy the kernel into Gold Bot and accept the divergence — but do it knowingly, and revisit at the point a third product needs the same code.
 
+#### Status: done, one step short of the end state
+
+The package exists at `packages/php-core`, namespace `Paragon\Core\`, and Gold Bot consumes it through a Composer **path** repository rather than a VCS one. Everything else the ADR asks for is in place: `composer.json`, `README.md`, its own `phpunit.xml`, and its own tests. Every namespace, import and autoload rule is already what it will be in the standalone repository, so `git subtree split` moves it out without touching a line of code. `packages/php-core/README.md` has the four commands.
+
+The path repository rather than the VCS one is not a substitute chosen on the merits — a private repository could not be created from the build environment this was extracted in. The consequence to be aware of, because it is exactly the risk ADR-02 was written to remove: **until the split, Gold Bot does not pin a kernel version.** A change to `packages/php-core` takes effect on the next request, unannounced. That is acceptable while Gold Bot is the only consumer and the kernel lives in its repository; it stops being acceptable the moment NexusDesk consumes it, which is the moment to do the split.
+
+Where the line was drawn, since "kernel" is otherwise a matter of taste:
+
+- **In.** `Application`, `Container`, `Config`, `Env`, `Database`, `ErrorHandler`, `Router`, `Route`, `Request`/`Response`/`JsonResponse`/`RedirectResponse`, `HttpException`, `View`, `Controller`, `MiddlewareInterface`, plus the infrastructure ports (`Clock`, `Cache`, `Lock`, `Logging`, `Session`, `Http`) and `Uuid`/`Encryption`/`Csrf`.
+- **Out.** `ApiBudget` — it reads `api_providers` and writes `api_usage_log`, so it is a service about two specific tables no matter how much its name sounds like plumbing. The middleware implementations — `MiddlewareInterface` is the router's contract and is kernel, but `SecurityHeaders` names TradingView in its CSP. And authentication: the kernel's `Controller` takes a `View` and nothing else, while `GoldBot\Http\Controllers\Controller` subclasses it to add `AuthService` and the signed-in user. A kernel that knows what a user is has stopped being a kernel.
+
+Two things changed shape in the move, both because a default that names one application does not belong in a package shared by several. `HttpClient`'s user agent now defaults to `ParagonCore/1.0`, and `config/services.php` passes `GoldBot/1.0` explicitly. `Encryption`'s ciphertext version tag became a constructor argument, and `config/services.php` passes `'gb1:'` explicitly — the tag is written into every secret already at rest, so changing it is a data migration and not a rename, and it belongs where a reader can see that.
+
 ### ADR-03 — Strategies are pure functions over an immutable context
 
 Every strategy receives a `StrategyContext` (candles, indicators, levels, market structure, calendar events, session state) and returns a `SignalResult`. It reads nothing else — no database access, no clock, no HTTP, no globals.

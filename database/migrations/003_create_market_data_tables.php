@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Market data (docs/02 §5).
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): void {
     // The highest-volume table. No uuid column by deliberate choice (ADR-10):

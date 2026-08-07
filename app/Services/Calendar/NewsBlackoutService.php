@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace GoldBot\Services\Calendar;
 
 use DateTimeImmutable;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Calendar\EconomicEvent;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
+use Paragon\Core\Database;
 
 /**
  * Decides whether trading is suppressed around a news release.

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace GoldBot\Console\Tasks;
 
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
 use GoldBot\Services\Backup\BackupService;
+use Paragon\Core\Logging\LoggerInterface;
 use Throwable;
 
 /**

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace GoldBot\Console\Tasks;
 
 use GoldBot\Domain\Health\HealthStatus;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Services\Health\HealthMonitor;
+use Paragon\Core\Logging\LoggerInterface;
 use Throwable;
 
 /**

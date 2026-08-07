@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace GoldBot\Http\Middleware;
 
 use Closure;
-use GoldBot\Core\HttpException;
-use GoldBot\Core\JsonResponse;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Infrastructure\Cache\CacheInterface;
-use GoldBot\Infrastructure\Clock\ClockInterface;
+use Paragon\Core\Cache\CacheInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\HttpException;
+use Paragon\Core\JsonResponse;
+use Paragon\Core\MiddlewareInterface;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
 
 /**
  * Fixed-window rate limiting, keyed by IP and path.

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace GoldBot\Services\Backtest;
 
 use GoldBot\Domain\Performance\MetricSet;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Runs the same period at several score thresholds (ADR-04).

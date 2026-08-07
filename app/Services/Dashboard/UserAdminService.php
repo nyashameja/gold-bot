@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace GoldBot\Services\Dashboard;
 
-use GoldBot\Core\Database;
 use GoldBot\Domain\Identity\User;
 use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
 use GoldBot\Services\Auth\AuthService;
+use Paragon\Core\Database;
 
 /**
  * The Users page.

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace GoldBot\Database;
 
-use GoldBot\Core\Database;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Database;
+use Paragon\Core\Logging\LoggerInterface;
 use RuntimeException;
 
 /**

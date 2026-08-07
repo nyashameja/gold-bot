@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace GoldBot\Console\Tasks;
 
-use GoldBot\Core\Database;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\FileLogger;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Database;
+use Paragon\Core\Logging\FileLogger;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Enforces the retention policy (docs/02 §10).

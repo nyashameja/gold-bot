@@ -9,11 +9,11 @@ use DateTimeZone;
 use GoldBot\Domain\Calendar\EconomicEvent;
 use GoldBot\Domain\Calendar\EventImpact;
 use GoldBot\Infrastructure\Http\ApiBudget;
-use GoldBot\Infrastructure\Http\HttpClient;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\Calendar\CalendarException;
 use GoldBot\Integrations\Calendar\EconomicCalendarProviderInterface;
 use GoldBot\Integrations\Calendar\EventIdentityHasher;
+use Paragon\Core\Http\HttpClient;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * FRED release schedule — corroborating source for US releases (ADR-12).

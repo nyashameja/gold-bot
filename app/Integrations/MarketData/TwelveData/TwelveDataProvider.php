@@ -8,13 +8,13 @@ use DateTimeImmutable;
 use GoldBot\Domain\Market\CandleSeries;
 use GoldBot\Domain\Market\PriceSnapshot;
 use GoldBot\Domain\Market\Timeframe;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Infrastructure\Http\ApiBudget;
-use GoldBot\Infrastructure\Http\HttpClient;
-use GoldBot\Infrastructure\Http\HttpResponse;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\MarketData\MarketDataException;
 use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Http\HttpClient;
+use Paragon\Core\Http\HttpResponse;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Twelve Data adapter.

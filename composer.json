@@ -3,7 +3,18 @@
     "description": "Gold Bot — intelligent XAU/USD market analysis and trading-signal platform",
     "type": "project",
     "license": "proprietary",
+    "repositories": [
+        {
+            "comment": "ADR-02. The kernel lives at packages/php-core so that it can be split into its own private repository with `git subtree split` without rewriting a single import. Swapping this entry for a `vcs` repository and a version constraint is then the whole migration — see packages/php-core/README.md.",
+            "type": "path",
+            "url": "packages/php-core",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "require": {
+        "paragon/php-core": "@dev",
         "php": ">=8.3",
         "ext-json": "*",
         "ext-mbstring": "*",
@@ -21,10 +32,7 @@
         "psr-4": {
             "GoldBot\\": "app/",
             "GoldBot\\Database\\": "database/"
-        },
-        "files": [
-            "app/Support/helpers.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {

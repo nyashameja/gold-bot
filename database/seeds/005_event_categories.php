@@ -13,7 +13,7 @@ declare(strict_types=1);
  * operator can add a pattern without a deploy.
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): int {
     $categories = [

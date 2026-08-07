@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace GoldBot\Tests\Unit;
 
-use GoldBot\Infrastructure\Logging\LoggerInterface;
-use GoldBot\Infrastructure\Logging\LogLevel;
+use Paragon\Core\Logging\LoggerInterface;
+use Paragon\Core\Logging\LogLevel;
 use Stringable;
 
 /**

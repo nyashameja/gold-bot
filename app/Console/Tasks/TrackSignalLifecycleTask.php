@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace GoldBot\Console\Tasks;
 
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Services\Performance\SnapshotBuilder;
 use GoldBot\Services\Signals\SignalLifecycleService;
+use Paragon\Core\Logging\LoggerInterface;
 use Throwable;
 
 /**

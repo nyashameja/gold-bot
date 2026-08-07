@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Operations: API budget, the scheduler, health and logs (docs/02 §9).
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): void {
     $db->run(

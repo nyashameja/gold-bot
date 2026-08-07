@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2e83acfd238f4362af07f2234be20769",
+    "content-hash": "a831d43bfb4f6eb8d5e836a42f95877e",
     "packages": [
         {
             "name": "graham-campbell/result-type",
@@ -67,6 +67,42 @@
                 }
             ],
             "time": "2025-12-27T19:43:20+00:00"
+        },
+        {
+            "name": "paragon/php-core",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/php-core",
+                "reference": "80dad7213b7c9f9be45432be3a69c470837ec9bc"
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "ext-openssl": "*",
+                "ext-pdo": "*",
+                "ext-sodium": "*",
+                "php": ">=8.3",
+                "vlucas/phpdotenv": "^5.6"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Paragon\\Core\\": "src/"
+                },
+                "files": [
+                    "src/helpers.php"
+                ]
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "The framework-free PHP kernel behind Paragon's applications — container, router, database, views and the infrastructure ports around them",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "phpoption/phpoption",
@@ -2248,7 +2284,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "paragon/php-core": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

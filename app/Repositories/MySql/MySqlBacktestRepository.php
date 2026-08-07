@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace GoldBot\Repositories\MySql;
 
-use GoldBot\Core\Database;
 use GoldBot\Domain\Backtest\SimulatedTrade;
 use GoldBot\Domain\Performance\MetricSet;
 use GoldBot\Repositories\Contracts\BacktestRepositoryInterface;
-use GoldBot\Support\Uuid;
+use Paragon\Core\Database;
+use Paragon\Core\Support\Uuid;
 
 final class MySqlBacktestRepository implements BacktestRepositoryInterface
 {

@@ -15,8 +15,6 @@ use GoldBot\Domain\Signal\SignalState;
 use GoldBot\Domain\Strategy\PillarScore;
 use GoldBot\Domain\Strategy\SignalResult;
 use GoldBot\Domain\Strategy\SignalTarget;
-use GoldBot\Infrastructure\Clock\FrozenClock;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
@@ -28,6 +26,8 @@ use GoldBot\Services\Signals\SignalPublisher;
 use GoldBot\Services\Telegram\MessageRenderer;
 use GoldBot\Services\Telegram\SignalMessagePayload;
 use GoldBot\Services\Telegram\TelegramService;
+use Paragon\Core\Clock\FrozenClock;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Lifecycle tracking driven by a scripted price path (docs/01 §7).

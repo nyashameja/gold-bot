@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace GoldBot\Console\Tasks;
 
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\Calendar\CalendarException;
 use GoldBot\Services\Calendar\CalendarService;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Imports the economic calendar.

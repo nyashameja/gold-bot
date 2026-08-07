@@ -6,10 +6,10 @@ namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Identity\User;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
-use GoldBot\Support\Uuid;
+use Paragon\Core\Database;
+use Paragon\Core\Support\Uuid;
 
 final class MySqlUserRepository implements UserRepositoryInterface
 {

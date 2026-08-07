@@ -6,7 +6,6 @@ namespace GoldBot\Services\Backtest;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Container;
 use GoldBot\Domain\Backtest\SimulatedTrade;
 use GoldBot\Domain\Backtest\TradeOutcomeType;
 use GoldBot\Domain\Market\Candle;
@@ -15,12 +14,13 @@ use GoldBot\Domain\Performance\PerformanceCalculator;
 use GoldBot\Domain\Strategy\SignalResult;
 use GoldBot\Domain\Strategy\StrategyConfig;
 use GoldBot\Domain\Strategy\StrategyInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 use GoldBot\Services\Signals\StrategyContextBuilder;
+use Paragon\Core\Container;
+use Paragon\Core\Logging\LoggerInterface;
 use RuntimeException;
 
 /**

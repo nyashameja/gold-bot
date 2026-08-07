@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace GoldBot\Tests\Feature;
 
-use GoldBot\Core\Application;
-use GoldBot\Core\Database;
-use GoldBot\Core\ErrorHandler;
-use GoldBot\Core\HttpException;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Core\Router;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
 use GoldBot\Services\Auth\AuthService;
-use GoldBot\Support\Security\Csrf;
+use Paragon\Core\Application;
+use Paragon\Core\Database;
+use Paragon\Core\ErrorHandler;
+use Paragon\Core\HttpException;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
+use Paragon\Core\Router;
+use Paragon\Core\Support\Csrf;
 use PHPUnit\Framework\TestCase;
 
 /**

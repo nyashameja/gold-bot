@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace GoldBot\Console\Tasks;
 
 use GoldBot\Domain\Market\Timeframe;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Infrastructure\Http\ApiBudget;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\MarketData\MarketDataException;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Services\MarketData\CandleIngestService;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Imports candles for every active instrument and timeframe.

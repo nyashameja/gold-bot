@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Standalone test run for the kernel.
+
+    Only usable once the package has its own vendor/ (`composer install` inside
+    packages/php-core). Day to day the kernel's tests run as part of Gold Bot's
+    Unit suite — see the consuming phpunit.xml — but this file is what makes the
+    package testable on its own after a `git subtree split`, which is the point
+    of extracting it at all.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         cacheDirectory=".phpunit.cache"
+         executionOrder="depends,defects"
+         failOnRisky="true"
+         failOnWarning="true"
+         colors="true">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    <source restrictNotices="true" restrictWarnings="true">
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+</phpunit>

@@ -14,7 +14,7 @@ use GoldBot\Repositories\Contracts\PerformanceRepositoryInterface;
 use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 use GoldBot\Services\Dashboard\PerformanceService;
-use GoldBot\Support\Uuid;
+use Paragon\Core\Support\Uuid;
 
 /**
  * The dashboard's read side, against the real schema.

@@ -18,32 +18,15 @@ declare(strict_types=1);
 use GoldBot\Console\TaskDispatcher;
 use GoldBot\Console\Tasks\BackupDatabaseTask;
 use GoldBot\Console\Tasks\CalculateIndicatorsTask;
-use GoldBot\Console\Tasks\RunHealthChecksTask;
+use GoldBot\Console\Tasks\DrainTelegramQueueTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
-use GoldBot\Console\Tasks\DrainTelegramQueueTask;
 use GoldBot\Console\Tasks\RebuildPerformanceTask;
+use GoldBot\Console\Tasks\RunHealthChecksTask;
 use GoldBot\Console\Tasks\RunStrategyAnalysisTask;
 use GoldBot\Console\Tasks\TrackSignalLifecycleTask;
-use GoldBot\Core\Application;
-use GoldBot\Core\Config;
-use GoldBot\Core\Container;
-use GoldBot\Core\Database;
-use GoldBot\Core\Env;
-use GoldBot\Infrastructure\Http\ApiBudget;
-use GoldBot\Infrastructure\Http\HttpClient;
-use GoldBot\Integrations\Calendar\CompositeCalendarProvider;
-use GoldBot\Integrations\Calendar\EventIdentityHasher;
-use GoldBot\Integrations\Calendar\ForexFactory\ForexFactoryMapper;
-use GoldBot\Integrations\Calendar\ForexFactory\ForexFactoryProvider;
-use GoldBot\Integrations\Calendar\Fred\FredProvider;
-use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
-use GoldBot\Integrations\Telegram\TelegramClient;
-use GoldBot\Integrations\Telegram\TelegramClientInterface;
-use GoldBot\Integrations\MarketData\TwelveData\TwelveDataMapper;
-use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
-use GoldBot\Domain\Session\SessionResolver;
 use GoldBot\Domain\Performance\PerformanceCalculator;
+use GoldBot\Domain\Session\SessionResolver;
 use GoldBot\Domain\Signal\SignalLifecycle;
 use GoldBot\Domain\Strategy\RuleEvaluator;
 use GoldBot\Domain\Strategy\Strategies\EmaCrossStrategy;
@@ -51,6 +34,19 @@ use GoldBot\Domain\Strategy\Strategies\SevenFourteenStrategy;
 use GoldBot\Domain\Structure\LevelBuilder;
 use GoldBot\Domain\Structure\StructureAnalyser;
 use GoldBot\Domain\Structure\SwingDetector;
+use GoldBot\Http\Middleware\RateLimit;
+use GoldBot\Infrastructure\Http\ApiBudget;
+use GoldBot\Integrations\Calendar\CompositeCalendarProvider;
+use GoldBot\Integrations\Calendar\EventIdentityHasher;
+use GoldBot\Integrations\Calendar\ForexFactory\ForexFactoryMapper;
+use GoldBot\Integrations\Calendar\ForexFactory\ForexFactoryProvider;
+use GoldBot\Integrations\Calendar\Fred\FredProvider;
+use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
+use GoldBot\Integrations\MarketData\TwelveData\TwelveDataMapper;
+use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
+use GoldBot\Integrations\Telegram\TelegramClient;
+use GoldBot\Integrations\Telegram\TelegramClientInterface;
+use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
 use GoldBot\Repositories\Contracts\BacktestRepositoryInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
@@ -61,7 +57,13 @@ use GoldBot\Repositories\Contracts\OperationsRepositoryInterface;
 use GoldBot\Repositories\Contracts\PerformanceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
+use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
+use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
+use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
+use GoldBot\Repositories\Contracts\TelegramRepositoryInterface;
+use GoldBot\Repositories\Contracts\UserRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
+use GoldBot\Repositories\MySql\MySqlAuditRepository;
 use GoldBot\Repositories\MySql\MySqlBacktestRepository;
 use GoldBot\Repositories\MySql\MySqlCandleRepository;
 use GoldBot\Repositories\MySql\MySqlEconomicEventRepository;
@@ -72,6 +74,18 @@ use GoldBot\Repositories\MySql\MySqlOperationsRepository;
 use GoldBot\Repositories\MySql\MySqlPerformanceRepository;
 use GoldBot\Repositories\MySql\MySqlPerformanceSnapshotRepository;
 use GoldBot\Repositories\MySql\MySqlPriceSnapshotRepository;
+use GoldBot\Repositories\MySql\MySqlSettingsRepository;
+use GoldBot\Repositories\MySql\MySqlSignalRepository;
+use GoldBot\Repositories\MySql\MySqlStrategyRepository;
+use GoldBot\Repositories\MySql\MySqlTelegramRepository;
+use GoldBot\Repositories\MySql\MySqlUserRepository;
+use GoldBot\Repositories\MySql\MySqlWatermarkRepository;
+use GoldBot\Services\Auth\AuthService;
+use GoldBot\Services\Backtest\BacktestRunner;
+use GoldBot\Services\Backtest\ThresholdSweep;
+use GoldBot\Services\Backup\BackupService;
+use GoldBot\Services\Calendar\CalendarService;
+use GoldBot\Services\Calendar\NewsBlackoutService;
 use GoldBot\Services\Dashboard\ApiUsageService;
 use GoldBot\Services\Dashboard\CalendarBoardService;
 use GoldBot\Services\Dashboard\HealthService;
@@ -83,10 +97,12 @@ use GoldBot\Services\Dashboard\SettingsAdminService;
 use GoldBot\Services\Dashboard\SignalBoardService;
 use GoldBot\Services\Dashboard\TelegramBoardService;
 use GoldBot\Services\Dashboard\UserAdminService;
-use GoldBot\Repositories\MySql\MySqlWatermarkRepository;
+use GoldBot\Services\Health\HealthChecker;
+use GoldBot\Services\Health\HealthMonitor;
 use GoldBot\Services\MarketData\CandleIngestService;
 use GoldBot\Services\MarketData\IndicatorService;
-use GoldBot\Services\Calendar\CalendarService;
+use GoldBot\Services\MarketData\StructureService;
+use GoldBot\Services\Performance\SnapshotBuilder;
 use GoldBot\Services\Signals\Filters\CooldownFilter;
 use GoldBot\Services\Signals\Filters\DuplicateFilter;
 use GoldBot\Services\Signals\Filters\EnabledFilter;
@@ -95,50 +111,34 @@ use GoldBot\Services\Signals\Filters\NewsFilter;
 use GoldBot\Services\Signals\Filters\SessionFilter;
 use GoldBot\Services\Signals\Filters\SignalFilterChain;
 use GoldBot\Services\Signals\Filters\SpreadFilter;
-use GoldBot\Services\Backtest\BacktestRunner;
-use GoldBot\Services\Backtest\ThresholdSweep;
-use GoldBot\Services\Backup\BackupService;
-use GoldBot\Services\Health\HealthChecker;
-use GoldBot\Services\Health\HealthMonitor;
-use GoldBot\Services\Performance\SnapshotBuilder;
 use GoldBot\Services\Signals\SignalEngine;
 use GoldBot\Services\Signals\SignalLifecycleService;
 use GoldBot\Services\Signals\SignalPublisher;
+use GoldBot\Services\Signals\StrategyContextBuilder;
 use GoldBot\Services\Telegram\MessageRenderer;
 use GoldBot\Services\Telegram\SignalMessagePayload;
 use GoldBot\Services\Telegram\TelegramService;
-use GoldBot\Services\Signals\StrategyContextBuilder;
-use GoldBot\Services\Calendar\NewsBlackoutService;
-use GoldBot\Services\MarketData\StructureService;
-use GoldBot\Infrastructure\Cache\ApcuCache;
-use GoldBot\Infrastructure\Cache\CacheInterface;
-use GoldBot\Infrastructure\Cache\FileCache;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Clock\SystemClock;
-use GoldBot\Infrastructure\Lock\LockInterface;
-use GoldBot\Infrastructure\Lock\MySqlNamedLock;
-use GoldBot\Infrastructure\Logging\FileLogger;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
-use GoldBot\Infrastructure\Logging\LogLevel;
-use GoldBot\Core\Router;
-use GoldBot\Core\View;
-use GoldBot\Http\Middleware\RateLimit;
-use GoldBot\Infrastructure\Session\DatabaseSessionHandler;
-use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
-use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
-use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
-use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
-use GoldBot\Repositories\Contracts\TelegramRepositoryInterface;
-use GoldBot\Repositories\Contracts\UserRepositoryInterface;
-use GoldBot\Repositories\MySql\MySqlAuditRepository;
-use GoldBot\Repositories\MySql\MySqlSettingsRepository;
-use GoldBot\Repositories\MySql\MySqlSignalRepository;
-use GoldBot\Repositories\MySql\MySqlStrategyRepository;
-use GoldBot\Repositories\MySql\MySqlTelegramRepository;
-use GoldBot\Repositories\MySql\MySqlUserRepository;
-use GoldBot\Services\Auth\AuthService;
-use GoldBot\Support\Encryption;
-use GoldBot\Support\Security\Csrf;
+use Paragon\Core\Application;
+use Paragon\Core\Cache\ApcuCache;
+use Paragon\Core\Cache\CacheInterface;
+use Paragon\Core\Cache\FileCache;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Clock\SystemClock;
+use Paragon\Core\Config;
+use Paragon\Core\Container;
+use Paragon\Core\Database;
+use Paragon\Core\Env;
+use Paragon\Core\Http\HttpClient;
+use Paragon\Core\Lock\LockInterface;
+use Paragon\Core\Lock\MySqlNamedLock;
+use Paragon\Core\Logging\FileLogger;
+use Paragon\Core\Logging\LoggerInterface;
+use Paragon\Core\Logging\LogLevel;
+use Paragon\Core\Router;
+use Paragon\Core\Session\DatabaseSessionHandler;
+use Paragon\Core\Support\Csrf;
+use Paragon\Core\Support\Encryption;
+use Paragon\Core\View;
 
 return static function (Container $container, Config $config, Application $app): void {
     // ── Clock ────────────────────────────────────────────────────────────────
@@ -182,8 +182,13 @@ return static function (Container $container, Config $config, Application $app):
     ));
 
     // ── Encryption ───────────────────────────────────────────────────────────
+    // 'gb1:' is stated explicitly rather than left to the kernel's default: it
+    // is a version tag written into every ciphertext already in the database,
+    // so it belongs where a reader can see that changing it is a data
+    // migration and not a rename.
     $container->singleton(Encryption::class, static fn (): Encryption => new Encryption(
-        $config->string('app.key')
+        $config->string('app.key'),
+        'gb1:'
     ));
 
     // ── Repositories ─────────────────────────────────────────────────────────
@@ -244,7 +249,10 @@ return static function (Container $container, Config $config, Application $app):
     $container->singleton(HttpClient::class, static fn (Container $c): HttpClient => new HttpClient(
         $c->get(LoggerInterface::class),
         $config->int('market.http.timeout_seconds', 15),
-        $config->int('market.http.connect_timeout_seconds', 5)
+        $config->int('market.http.connect_timeout_seconds', 5),
+        // The kernel sends ParagonCore/1.0; a provider's rate-limit dashboard
+        // should name the application that spent the quota.
+        'GoldBot/1.0'
     ));
 
     $container->singleton(ApiBudget::class, static fn (Container $c): ApiBudget => new ApiBudget(

@@ -1,6 +1,6 @@
 # Gold Bot — Folder Structure
 
-Document 03 of 05 · Status: **Awaiting approval** · PSR-4: `GoldBot\` → `app/`
+Document 03 of 05 · Status: **Awaiting approval** · PSR-4: `GoldBot\` → `app/`, `Paragon\Core\` → `packages/php-core/src/`
 
 ---
 
@@ -14,6 +14,9 @@ gold-bot/
 ├── cron/                   CLI entry points
 ├── database/               Migrations & seeds
 ├── docs/                   Architecture & operational documentation
+├── packages/php-core/      The kernel — paragon/php-core (ADR-02), consumed
+│                           through a Composer path repository until it is
+│                           split into its own private repository
 ├── public/                 ← Apache document root. Everything else sits above it.
 ├── resources/              Views & uncompiled front-end sources
 ├── storage/                Logs, cache, backups (writable, gitignored)
@@ -33,19 +36,6 @@ gold-bot/
 
 ```
 app/
-├── Core/                       Kernel — from paragon/php-core (ADR-02)
-│   ├── Application.php
-│   ├── Container.php
-│   ├── Router.php  Route.php
-│   ├── Request.php  Response.php  JsonResponse.php  RedirectResponse.php
-│   ├── Controller.php  View.php
-│   ├── Config.php  Env.php
-│   ├── Database.php  QueryBuilder.php
-│   ├── ErrorHandler.php  HttpException.php
-│   └── Console/
-│       ├── Command.php
-│       └── TaskDispatcher.php      Reads scheduled_tasks, acquires lock, runs
-│
 ├── Http/
 │   ├── Controllers/
 │   │   ├── AuthController.php
@@ -153,11 +143,10 @@ app/
 │   └── Telegram/   TelegramClient.php  TelegramFormatter.php
 │
 ├── Infrastructure/
-│   ├── Http/       HttpClient.php  RetryPolicy.php  ApiBudget.php
-│   ├── Logging/    FileLogger.php  DatabaseLogger.php  LoggerInterface.php
-│   ├── Cache/      CacheInterface.php  ApcuCache.php  FileCache.php
-│   ├── Clock/      ClockInterface.php  SystemClock.php  FrozenClock.php
-│   └── Lock/       LockInterface.php  MySqlNamedLock.php        (ADR-09)
+│   └── Http/       ApiBudget.php    Reads api_providers, writes api_usage_log —
+│                                    a service about two tables, not plumbing,
+│                                    so it stayed when the rest of
+│                                    Infrastructure/ moved to the kernel
 │
 ├── Console/Tasks/              One class per scheduled task
 │   ├── TaskInterface.php
@@ -172,8 +161,35 @@ app/
 │   ├── CleanupTask.php
 │   └── BackupTask.php
 │
-└── Support/                    helpers.php · Str · Arr · Money · Uuid · Encryption
+└── (no Core/ or Support/ — see below)
 ```
+
+### The kernel is not in `app/`
+
+`app/Core/`, most of `app/Infrastructure/` and all of `app/Support/` were extracted to **`paragon/php-core`** under ADR-02. They live at `packages/php-core/src/` in namespace `Paragon\Core\`, and Gold Bot requires the package through a Composer path repository:
+
+```
+packages/php-core/
+├── composer.json                paragon/php-core · PSR-4 Paragon\Core\ → src/
+├── phpunit.xml                  For running the kernel standalone
+├── README.md                    What is in it, what is not, how to split it out
+├── src/
+│   ├── Application.php  Container.php  Config.php  Env.php
+│   ├── Database.php  ErrorHandler.php  HttpException.php
+│   ├── Router.php  Route.php  MiddlewareInterface.php
+│   ├── Request.php  Response.php  JsonResponse.php  RedirectResponse.php
+│   ├── View.php  Controller.php  helpers.php
+│   ├── Clock/    ClockInterface.php  SystemClock.php  FrozenClock.php
+│   ├── Cache/    CacheInterface.php  FileCache.php  ApcuCache.php
+│   ├── Lock/     LockInterface.php  MySqlNamedLock.php          (ADR-09)
+│   ├── Logging/  LoggerInterface.php  LogLevel.php  FileLogger.php
+│   ├── Session/  DatabaseSessionHandler.php
+│   ├── Http/     HttpClient.php  HttpResponse.php
+│   └── Support/  Uuid.php  Encryption.php  Csrf.php
+└── tests/                       Runs in Gold Bot's Unit suite and standalone
+```
+
+Two things stayed behind that look like they should not have. `MiddlewareInterface` is kernel because it is the router's contract, but every implementation of it is in `app/Http/Middleware/` — `SecurityHeaders` names TradingView in its CSP. And `Controller` exists in both places: the kernel's takes a `View`, and `GoldBot\Http\Controllers\Controller` subclasses it to add `AuthService`, because a kernel that knows what a user is has stopped being a kernel.
 
 ### Why `Domain/` is separated from `Services/`
 

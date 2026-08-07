@@ -10,10 +10,10 @@ use GoldBot\Domain\Performance\PerformanceCalculator;
 use GoldBot\Domain\Performance\PeriodType;
 use GoldBot\Domain\Performance\SnapshotScope;
 use GoldBot\Domain\Performance\TradeOutcome;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\PerformanceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
 
 /**
  * What the Performance page reads.

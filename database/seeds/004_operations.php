@@ -9,19 +9,19 @@ declare(strict_types=1);
  * an operator retuning a schedule in the UI is not reverted by a deploy.
  */
 
-use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\BackupDatabaseTask;
+use GoldBot\Console\Tasks\CalculateIndicatorsTask;
 use GoldBot\Console\Tasks\CleanupTask;
-use GoldBot\Console\Tasks\RunHealthChecksTask;
+use GoldBot\Console\Tasks\DrainTelegramQueueTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
-use GoldBot\Console\Tasks\RebuildPerformanceTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Console\Tasks\ImportPriceSnapshotTask;
-use GoldBot\Console\Tasks\DrainTelegramQueueTask;
+use GoldBot\Console\Tasks\RebuildPerformanceTask;
+use GoldBot\Console\Tasks\RunHealthChecksTask;
 use GoldBot\Console\Tasks\RunStrategyAnalysisTask;
 use GoldBot\Console\Tasks\TrackSignalLifecycleTask;
-use GoldBot\Core\Database;
-use GoldBot\Core\Env;
+use Paragon\Core\Database;
+use Paragon\Core\Env;
 
 return static function (Database $db): int {
     $affected = 0;

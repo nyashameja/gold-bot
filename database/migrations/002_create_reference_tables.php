@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Reference data: instruments, timeframes, sessions and settings (docs/02 §4).
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): void {
     // instrument_id is a first-class dimension on every market table from day

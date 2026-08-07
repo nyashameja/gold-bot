@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace GoldBot\Services\Signals;
 
 use DateTimeImmutable;
-use GoldBot\Core\Container;
 use GoldBot\Domain\Market\Timeframe;
 use GoldBot\Domain\Strategy\SignalResult;
 use GoldBot\Domain\Strategy\StrategyConfig;
 use GoldBot\Domain\Strategy\StrategyContext;
 use GoldBot\Domain\Strategy\StrategyInterface;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
 use GoldBot\Services\Signals\Filters\SignalFilterChain;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Container;
+use Paragon\Core\Logging\LoggerInterface;
 use Throwable;
 
 /**

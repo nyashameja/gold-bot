@@ -6,9 +6,9 @@ namespace GoldBot\Services\Dashboard;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\OperationsRepositoryInterface;
 use GoldBot\Services\Health\HealthChecker;
+use Paragon\Core\Clock\ClockInterface;
 
 /**
  * What the System Health page reads.

@@ -13,7 +13,7 @@ declare(strict_types=1);
  * revisiting every check that used it.
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): int {
     $affected = 0;

@@ -6,7 +6,6 @@ namespace GoldBot\Services\Dashboard;
 
 use GoldBot\Domain\Market\Timeframe;
 use GoldBot\Domain\Session\SessionResolver;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\IndicatorRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
@@ -14,6 +13,7 @@ use GoldBot\Repositories\Contracts\MarketStructureRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
 use GoldBot\Services\MarketData\StructureService;
+use Paragon\Core\Clock\ClockInterface;
 use RuntimeException;
 
 /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace GoldBot\Tests\Integration;
 
-use GoldBot\Infrastructure\Lock\MySqlNamedLock;
+use Paragon\Core\Lock\MySqlNamedLock;
 use RuntimeException;
 
 /**

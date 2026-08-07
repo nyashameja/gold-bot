@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Economic calendar (docs/02 §6).
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): void {
     // Blackout windows live on the category, so "no signals within 30 minutes

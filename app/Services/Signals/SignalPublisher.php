@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace GoldBot\Services\Signals;
 
 use DateTimeImmutable;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Notification\MessageType;
 use GoldBot\Domain\Signal\SignalEventType;
 use GoldBot\Domain\Strategy\SignalResult;
 use GoldBot\Domain\Strategy\StrategyConfig;
 use GoldBot\Domain\Strategy\StrategyContext;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
 use GoldBot\Services\Telegram\SignalMessagePayload;
 use GoldBot\Services\Telegram\TelegramService;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Database;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Persists a signal and enqueues its notification atomically (ADR-07).

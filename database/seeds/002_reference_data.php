@@ -11,7 +11,7 @@ declare(strict_types=1);
  * columns and deliberately leave `is_active` alone on existing rows.
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): int {
     /** @var array<string,mixed> $market */

@@ -6,16 +6,16 @@ namespace GoldBot\Services\Health;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Health\HealthReport;
 use GoldBot\Domain\Health\HealthStatus;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Integrations\Telegram\TelegramClientInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\OperationsRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\TelegramRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Database;
 use Throwable;
 
 /**

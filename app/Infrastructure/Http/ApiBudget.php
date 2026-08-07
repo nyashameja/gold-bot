@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace GoldBot\Infrastructure\Http;
 
-use GoldBot\Core\Database;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Database;
+use Paragon\Core\Http\HttpResponse;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Provider request budget, enforced against the usage ledger (docs/01 §5).

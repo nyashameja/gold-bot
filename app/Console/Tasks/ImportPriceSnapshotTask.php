@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace GoldBot\Console\Tasks;
 
 use GoldBot\Infrastructure\Http\ApiBudget;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\MarketData\MarketDataException;
 use GoldBot\Integrations\MarketData\TwelveData\TwelveDataProvider;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Services\MarketData\CandleIngestService;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Captures the current quote for each active instrument.

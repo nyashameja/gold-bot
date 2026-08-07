@@ -6,10 +6,10 @@ namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Market\Candle;
 use GoldBot\Domain\Market\CandleSeries;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
+use Paragon\Core\Database;
 
 final class MySqlCandleRepository implements CandleRepositoryInterface
 {

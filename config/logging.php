@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use GoldBot\Core\Env;
+use Paragon\Core\Env;
 
 return [
     'level'          => Env::string('LOG_LEVEL', 'info'),

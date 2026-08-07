@@ -1,0 +1,38 @@
+{
+    "name": "paragon/php-core",
+    "description": "The framework-free PHP kernel behind Paragon's applications — container, router, database, views and the infrastructure ports around them",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.3",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
+        "ext-curl": "*",
+        "ext-sodium": "*",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Paragon\\Core\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Paragon\\Core\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.3.0"
+        }
+    }
+}

@@ -6,11 +6,11 @@ namespace GoldBot\Services\Dashboard;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Notification\MessageType;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Integrations\Telegram\TelegramClientInterface;
 use GoldBot\Repositories\Contracts\TelegramRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Database;
 
 /**
  * The Telegram page: queue depth, delivery history and the configured chats.

@@ -13,7 +13,7 @@ declare(strict_types=1);
  * — so a deploy never silently reverts an operator's tuning.
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): int {
     $settings = [

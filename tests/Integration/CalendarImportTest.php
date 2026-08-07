@@ -8,10 +8,10 @@ use DateTimeImmutable;
 use DateTimeZone;
 use GoldBot\Domain\Calendar\EconomicEvent;
 use GoldBot\Domain\Calendar\EventImpact;
-use GoldBot\Infrastructure\Clock\FrozenClock;
 use GoldBot\Integrations\Calendar\EventIdentityHasher;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
 use GoldBot\Services\Calendar\NewsBlackoutService;
+use Paragon\Core\Clock\FrozenClock;
 
 /**
  * Calendar persistence and the news filter.

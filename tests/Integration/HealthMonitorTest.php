@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace GoldBot\Tests\Integration;
 
 use GoldBot\Domain\Health\HealthStatus;
-use GoldBot\Infrastructure\Clock\FrozenClock;
 use GoldBot\Integrations\Telegram\TelegramClientInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
@@ -17,7 +16,8 @@ use GoldBot\Services\Health\HealthChecker;
 use GoldBot\Services\Health\HealthMonitor;
 use GoldBot\Services\Telegram\MessageRenderer;
 use GoldBot\Services\Telegram\TelegramService;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Clock\FrozenClock;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Health checks, transitions and alerting.

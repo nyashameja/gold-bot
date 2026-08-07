@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace GoldBot\Http\Controllers;
 
-use GoldBot\Core\Controller;
-use GoldBot\Core\HttpException;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Core\View;
 use GoldBot\Repositories\Contracts\BacktestRepositoryInterface;
 use GoldBot\Services\Auth\AuthService;
+use Paragon\Core\HttpException;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
+use Paragon\Core\View;
 
 /**
  * Backtest results (ADR-04).

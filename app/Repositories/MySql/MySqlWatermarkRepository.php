@@ -6,8 +6,8 @@ namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Database;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
+use Paragon\Core\Database;
 
 final class MySqlWatermarkRepository implements WatermarkRepositoryInterface
 {

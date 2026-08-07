@@ -6,10 +6,10 @@ namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Calendar\EconomicEvent;
 use GoldBot\Domain\Calendar\EventImpact;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
+use Paragon\Core\Database;
 
 final class MySqlEconomicEventRepository implements EconomicEventRepositoryInterface
 {

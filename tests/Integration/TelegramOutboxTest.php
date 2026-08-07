@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace GoldBot\Tests\Integration;
 
 use GoldBot\Domain\Notification\MessageType;
-use GoldBot\Infrastructure\Clock\FrozenClock;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\Telegram\TelegramClientInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
 use GoldBot\Repositories\Contracts\TelegramRepositoryInterface;
 use GoldBot\Services\Telegram\MessageRenderer;
 use GoldBot\Services\Telegram\TelegramService;
+use Paragon\Core\Clock\FrozenClock;
+use Paragon\Core\Logging\LoggerInterface;
 use RuntimeException;
 
 /**

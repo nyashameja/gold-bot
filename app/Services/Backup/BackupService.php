@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace GoldBot\Services\Backup;
 
 use DateTimeImmutable;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Logging\LoggerInterface;
 use RuntimeException;
 
 /**

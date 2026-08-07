@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace GoldBot\Http\Controllers;
 
-use GoldBot\Core\Controller;
-use GoldBot\Core\RedirectResponse;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Core\View;
 use GoldBot\Services\Auth\AuthService;
-use GoldBot\Support\Security\Csrf;
+use Paragon\Core\RedirectResponse;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
+use Paragon\Core\Support\Csrf;
+use Paragon\Core\View;
 
 final class AuthController extends Controller
 {

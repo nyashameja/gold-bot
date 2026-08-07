@@ -7,7 +7,7 @@ namespace GoldBot\Tests\Integration;
 use GoldBot\Console\TaskDispatcher;
 use GoldBot\Console\Tasks\TaskInterface;
 use GoldBot\Console\Tasks\TaskResult;
-use GoldBot\Infrastructure\Lock\MySqlNamedLock;
+use Paragon\Core\Lock\MySqlNamedLock;
 use RuntimeException;
 
 /** A task whose behaviour each test dictates. */

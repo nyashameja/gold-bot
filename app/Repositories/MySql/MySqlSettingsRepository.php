@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace GoldBot\Repositories\MySql;
 
-use GoldBot\Core\Database;
-use GoldBot\Infrastructure\Cache\CacheInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
+use Paragon\Core\Cache\CacheInterface;
+use Paragon\Core\Database;
 
 /**
  * Settings storage with a short-lived cache.

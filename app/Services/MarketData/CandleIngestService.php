@@ -6,14 +6,14 @@ namespace GoldBot\Services\MarketData;
 
 use DateTimeImmutable;
 use GoldBot\Domain\Market\Timeframe;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\MarketData\MarketDataException;
 use GoldBot\Integrations\MarketData\MarketDataProviderInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Fetches bars and quotes and stores them (docs/01 §5).

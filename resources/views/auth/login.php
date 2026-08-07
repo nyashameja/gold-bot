@@ -2,7 +2,7 @@
 /**
  * Sign-in form.
  *
- * @var \GoldBot\Support\Security\Csrf $csrf
+ * @var \Paragon\Core\Support\Csrf $csrf
  * @var array<string,mixed>            $flash
  * @var array<string,mixed>            $old
  */

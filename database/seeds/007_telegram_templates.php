@@ -14,8 +14,8 @@ declare(strict_types=1);
  * where nothing stands out.
  */
 
-use GoldBot\Core\Database;
 use GoldBot\Domain\Notification\MessageType;
+use Paragon\Core\Database;
 
 return static function (Database $db): int {
     $templates = [

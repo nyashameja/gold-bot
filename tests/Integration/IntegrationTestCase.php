@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace GoldBot\Tests\Integration;
 
-use GoldBot\Core\Application;
-use GoldBot\Core\Database;
-use GoldBot\Core\ErrorHandler;
+use Paragon\Core\Application;
+use Paragon\Core\Database;
+use Paragon\Core\ErrorHandler;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -52,7 +52,7 @@ abstract class IntegrationTestCase extends TestCase
     protected function separateConnection(): Database
     {
         /** @var array<string,mixed> $config */
-        $config = $this->app->container()->get(\GoldBot\Core\Config::class)->array('database');
+        $config = $this->app->container()->get(\Paragon\Core\Config::class)->array('database');
 
         return new Database($config);
     }

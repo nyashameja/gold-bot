@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
-use GoldBot\Core\Database;
 use GoldBot\Repositories\Contracts\OperationsRepositoryInterface;
+use Paragon\Core\Database;
 
 final class MySqlOperationsRepository implements OperationsRepositoryInterface
 {

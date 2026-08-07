@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace GoldBot\Services\MarketData;
 
-use GoldBot\Core\Database;
 use GoldBot\Domain\Market\Timeframe;
 use GoldBot\Domain\Structure\LevelBuilder;
 use GoldBot\Domain\Structure\PriceLevel;
 use GoldBot\Domain\Structure\StructureAnalyser;
 use GoldBot\Domain\Structure\SwingDetector;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\WatermarkRepositoryInterface;
+use Paragon\Core\Database;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Persists swing points, structural breaks and price levels.

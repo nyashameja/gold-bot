@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use GoldBot\Core\Env;
+use Paragon\Core\Env;
 
 return [
     // 'apcu' silently falls back to 'file' when the extension is absent, which

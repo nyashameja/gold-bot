@@ -14,7 +14,7 @@ declare(strict_types=1);
  * costs a rebuild and no information.
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): void {
     $db->run(

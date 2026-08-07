@@ -10,7 +10,7 @@ declare(strict_types=1);
  * not the other is a wiring bug, and this file is where it would be caught.
  */
 
-use GoldBot\Core\Application;
+use Paragon\Core\Application;
 
 $basePath = dirname(__DIR__);
 

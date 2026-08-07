@@ -9,11 +9,11 @@ use DateTimeZone;
 use GoldBot\Domain\Market\Enums\Direction;
 use GoldBot\Domain\Signal\SignalEventType;
 use GoldBot\Domain\Signal\SignalState;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PriceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
 
 /**
  * The Signals list and the single-signal detail view.

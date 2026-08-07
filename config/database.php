@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use GoldBot\Core\Env;
+use Paragon\Core\Env;
 
 return [
     'host'      => Env::string('DB_HOST', '127.0.0.1'),

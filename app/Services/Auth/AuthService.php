@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace GoldBot\Services\Auth;
 
-use GoldBot\Core\Request;
 use GoldBot\Domain\Identity\User;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
-use GoldBot\Infrastructure\Session\DatabaseSessionHandler;
 use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
 use GoldBot\Repositories\Contracts\UserRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Logging\LoggerInterface;
+use Paragon\Core\Request;
+use Paragon\Core\Session\DatabaseSessionHandler;
 
 /**
  * Authentication: login, logout, and the current user.

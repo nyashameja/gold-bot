@@ -8,10 +8,10 @@ use DateTimeImmutable;
 use GoldBot\Domain\Health\HealthReport;
 use GoldBot\Domain\Health\HealthStatus;
 use GoldBot\Domain\Notification\MessageType;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\OperationsRepositoryInterface;
 use GoldBot\Services\Telegram\TelegramService;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Logging\LoggerInterface;
 use Throwable;
 
 /**

@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace GoldBot\Http\Middleware;
 
 use Closure;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Core\View;
 use GoldBot\Services\Auth\AuthService;
-use GoldBot\Support\Security\Csrf;
+use Paragon\Core\MiddlewareInterface;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
+use Paragon\Core\Support\Csrf;
+use Paragon\Core\View;
 
 /**
  * Shares request-scoped values with every view, and consumes flash messages.

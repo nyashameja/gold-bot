@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace GoldBot\Http\Controllers;
 
-use GoldBot\Core\Controller;
-use GoldBot\Core\HttpException;
-use GoldBot\Core\JsonResponse;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Core\View;
 use GoldBot\Domain\Signal\SignalEventType;
 use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
 use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Services\Auth\AuthService;
 use GoldBot\Services\Dashboard\SignalBoardService;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\HttpException;
+use Paragon\Core\JsonResponse;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
+use Paragon\Core\View;
 
 final class SignalController extends Controller
 {

@@ -6,11 +6,11 @@ namespace GoldBot\Services\Telegram;
 
 use DateTimeImmutable;
 use GoldBot\Domain\Notification\MessageType;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\Telegram\TelegramClientInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
 use GoldBot\Repositories\Contracts\TelegramRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * The transactional outbox (ADR-07).

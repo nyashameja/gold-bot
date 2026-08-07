@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace GoldBot\Services\Calendar;
 
 use DateTimeImmutable;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Calendar\EconomicEvent;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\Calendar\CompositeCalendarProvider;
 use GoldBot\Integrations\Calendar\EventIdentityHasher;
 use GoldBot\Repositories\Contracts\EconomicEventRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Database;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Imports and archives economic events.

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace GoldBot\Services\Telegram;
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 /**
  * Renders a stored template against a payload.

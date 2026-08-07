@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace GoldBot\Http\Middleware;
 
 use Closure;
-use GoldBot\Core\Config;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Infrastructure\Session\DatabaseSessionHandler;
+use Paragon\Core\Config;
+use Paragon\Core\MiddlewareInterface;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
+use Paragon\Core\Session\DatabaseSessionHandler;
 
 /**
  * Starts the database-backed session with hardened cookie parameters.

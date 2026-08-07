@@ -6,7 +6,7 @@ namespace GoldBot\Integrations\Calendar;
 
 use DateTimeImmutable;
 use GoldBot\Domain\Calendar\EconomicEvent;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Fans a calendar query out across every configured provider.

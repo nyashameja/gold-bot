@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace GoldBot\Repositories\MySql;
 
-use GoldBot\Core\Database;
 use GoldBot\Domain\Market\Timeframe;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
+use Paragon\Core\Database;
 
 /**
  * Reference data with per-request memoisation.

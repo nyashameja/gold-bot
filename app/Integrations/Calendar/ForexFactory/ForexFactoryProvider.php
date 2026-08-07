@@ -7,10 +7,10 @@ namespace GoldBot\Integrations\Calendar\ForexFactory;
 use DateTimeImmutable;
 use GoldBot\Domain\Calendar\EconomicEvent;
 use GoldBot\Infrastructure\Http\ApiBudget;
-use GoldBot\Infrastructure\Http\HttpClient;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Integrations\Calendar\CalendarException;
 use GoldBot\Integrations\Calendar\EconomicCalendarProviderInterface;
+use Paragon\Core\Http\HttpClient;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * ForexFactory weekly calendar feed — the primary source (ADR-12).

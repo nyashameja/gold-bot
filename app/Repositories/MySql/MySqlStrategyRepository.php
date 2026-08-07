@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace GoldBot\Repositories\MySql;
 
 use DateTimeImmutable;
-use GoldBot\Core\Database;
 use GoldBot\Domain\Strategy\StrategyConfig;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
+use Paragon\Core\Database;
 
 final class MySqlStrategyRepository implements StrategyRepositoryInterface
 {

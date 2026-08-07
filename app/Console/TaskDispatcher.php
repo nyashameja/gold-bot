@@ -6,11 +6,11 @@ namespace GoldBot\Console;
 
 use GoldBot\Console\Tasks\TaskInterface;
 use GoldBot\Console\Tasks\TaskResult;
-use GoldBot\Core\Container;
-use GoldBot\Core\Database;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Lock\LockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Container;
+use Paragon\Core\Database;
+use Paragon\Core\Lock\LockInterface;
+use Paragon\Core\Logging\LoggerInterface;
 use Throwable;
 
 /**

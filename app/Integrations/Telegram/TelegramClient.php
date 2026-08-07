@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace GoldBot\Integrations\Telegram;
 
 use GoldBot\Infrastructure\Http\ApiBudget;
-use GoldBot\Infrastructure\Http\HttpClient;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Http\HttpClient;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Telegram Bot API client.

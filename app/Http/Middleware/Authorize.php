@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace GoldBot\Http\Middleware;
 
 use Closure;
-use GoldBot\Core\HttpException;
-use GoldBot\Core\JsonResponse;
-use GoldBot\Core\Request;
-use GoldBot\Core\Response;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Services\Auth\AuthService;
+use Paragon\Core\HttpException;
+use Paragon\Core\JsonResponse;
+use Paragon\Core\Logging\LoggerInterface;
+use Paragon\Core\MiddlewareInterface;
+use Paragon\Core\Request;
+use Paragon\Core\Response;
 
 /**
  * Permission enforcement.

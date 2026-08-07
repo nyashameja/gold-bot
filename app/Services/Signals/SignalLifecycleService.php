@@ -10,11 +10,11 @@ use GoldBot\Domain\Market\Candle;
 use GoldBot\Domain\Market\Enums\Direction;
 use GoldBot\Domain\Signal\SignalEventType;
 use GoldBot\Domain\Signal\SignalState;
-use GoldBot\Infrastructure\Clock\ClockInterface;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Repositories\Contracts\CandleRepositoryInterface;
 use GoldBot\Repositories\Contracts\SettingsRepositoryInterface;
 use GoldBot\Repositories\Contracts\SignalRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Advances open signals through their lifecycle (docs/01 §7).

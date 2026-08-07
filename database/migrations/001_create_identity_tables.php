@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Identity, access control and security (docs/02 §3).
  */
 
-use GoldBot\Core\Database;
+use Paragon\Core\Database;
 
 return static function (Database $db): void {
     $db->run(

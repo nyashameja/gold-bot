@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace GoldBot\Repositories\MySql;
 
-use GoldBot\Core\Database;
 use GoldBot\Repositories\Contracts\AuditRepositoryInterface;
+use Paragon\Core\Database;
 
 final class MySqlAuditRepository implements AuditRepositoryInterface
 {

@@ -9,12 +9,12 @@ use DateTimeZone;
 use GoldBot\Domain\Performance\PeriodType;
 use GoldBot\Domain\Performance\SnapshotScope;
 use GoldBot\Domain\Signal\SignalState;
-use GoldBot\Infrastructure\Clock\FrozenClock;
 use GoldBot\Repositories\Contracts\MarketReferenceRepositoryInterface;
 use GoldBot\Repositories\Contracts\PerformanceSnapshotRepositoryInterface;
 use GoldBot\Repositories\Contracts\StrategyRepositoryInterface;
 use GoldBot\Services\Performance\SnapshotBuilder;
-use GoldBot\Support\Uuid;
+use Paragon\Core\Clock\FrozenClock;
+use Paragon\Core\Support\Uuid;
 
 /**
  * The snapshot builder against the real schema.
@@ -70,7 +70,7 @@ final class PerformanceSnapshotTest extends IntegrationTestCase
             $this->snapshots,
             $container->get(\GoldBot\Domain\Performance\PerformanceCalculator::class),
             $this->clock,
-            $container->get(\GoldBot\Infrastructure\Logging\LoggerInterface::class)
+            $container->get(\Paragon\Core\Logging\LoggerInterface::class)
         );
 
         $this->clear();

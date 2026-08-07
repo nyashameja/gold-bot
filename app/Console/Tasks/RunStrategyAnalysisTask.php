@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace GoldBot\Console\Tasks;
 
-use GoldBot\Infrastructure\Logging\LoggerInterface;
 use GoldBot\Services\Signals\SignalEngine;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * Evaluates enabled strategies against new closed candles.

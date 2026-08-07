@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace GoldBot\Tests\Integration;
 
-use GoldBot\Infrastructure\Clock\FrozenClock;
 use GoldBot\Infrastructure\Http\ApiBudget;
-use GoldBot\Infrastructure\Http\HttpResponse;
-use GoldBot\Infrastructure\Logging\LoggerInterface;
+use Paragon\Core\Clock\FrozenClock;
+use Paragon\Core\Http\HttpResponse;
+use Paragon\Core\Logging\LoggerInterface;
 
 /**
  * The gate that stops ingest spending into a rate limit (docs/01 §5).

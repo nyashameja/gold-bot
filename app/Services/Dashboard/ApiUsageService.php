@@ -6,8 +6,8 @@ namespace GoldBot\Services\Dashboard;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use GoldBot\Infrastructure\Clock\ClockInterface;
 use GoldBot\Repositories\Contracts\OperationsRepositoryInterface;
+use Paragon\Core\Clock\ClockInterface;
 
 /**
  * The API Usage page.
