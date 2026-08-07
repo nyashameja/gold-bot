@@ -10,7 +10,9 @@ declare(strict_types=1);
  */
 
 use GoldBot\Console\Tasks\CalculateIndicatorsTask;
+use GoldBot\Console\Tasks\BackupDatabaseTask;
 use GoldBot\Console\Tasks\CleanupTask;
+use GoldBot\Console\Tasks\RunHealthChecksTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\RebuildPerformanceTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
@@ -156,6 +158,28 @@ return static function (Database $db): int {
             'cadence_minutes' => 1440,
             'timeout_seconds' => 600,
             'sort_order'      => 60,
+        ],
+        [
+            'code'            => 'system.health',
+            'name'            => 'Run health checks',
+            'handler_class'   => RunHealthChecksTask::class,
+            // Every five minutes: often enough that a transition is noticed
+            // while it still matters, rare enough that the history stays
+            // readable rather than becoming a wall of identical rows.
+            'cadence_minutes' => 5,
+            'timeout_seconds' => 60,
+            'sort_order'      => 70,
+        ],
+        [
+            'code'            => 'system.backup',
+            'name'            => 'Back up the database',
+            'handler_class'   => BackupDatabaseTask::class,
+            // Nightly. Offset so it does not start in the same minute as the
+            // other daily tasks and contend with them for the same connection.
+            'cadence_minutes' => 1440,
+            'offset_seconds'  => 180,
+            'timeout_seconds' => 900,
+            'sort_order'      => 80,
         ],
         [
             'code'            => 'system.cleanup',

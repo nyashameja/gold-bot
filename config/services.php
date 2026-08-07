@@ -16,7 +16,9 @@ declare(strict_types=1);
  */
 
 use GoldBot\Console\TaskDispatcher;
+use GoldBot\Console\Tasks\BackupDatabaseTask;
 use GoldBot\Console\Tasks\CalculateIndicatorsTask;
+use GoldBot\Console\Tasks\RunHealthChecksTask;
 use GoldBot\Console\Tasks\ImportCalendarTask;
 use GoldBot\Console\Tasks\ImportMarketDataTask;
 use GoldBot\Console\Tasks\DrainTelegramQueueTask;
@@ -91,6 +93,9 @@ use GoldBot\Services\Signals\Filters\NewsFilter;
 use GoldBot\Services\Signals\Filters\SessionFilter;
 use GoldBot\Services\Signals\Filters\SignalFilterChain;
 use GoldBot\Services\Signals\Filters\SpreadFilter;
+use GoldBot\Services\Backup\BackupService;
+use GoldBot\Services\Health\HealthChecker;
+use GoldBot\Services\Health\HealthMonitor;
 use GoldBot\Services\Performance\SnapshotBuilder;
 use GoldBot\Services\Signals\SignalEngine;
 use GoldBot\Services\Signals\SignalLifecycleService;
@@ -560,6 +565,52 @@ return static function (Container $container, Config $config, Application $app):
         $config->array('market.fetch.settle_seconds', [])
     ));
 
+    // ── Health, operations and backups (Phase 10) ────────────────────────────
+    // One checker, used by the System Health page and the cron alike, so the
+    // page and the alert cannot report different things about a component.
+    $container->singleton(HealthChecker::class, static fn (Container $c): HealthChecker => new HealthChecker(
+        $c->get(Database::class),
+        $c->get(OperationsRepositoryInterface::class),
+        $c->get(MarketReferenceRepositoryInterface::class),
+        $c->get(CandleRepositoryInterface::class),
+        $c->get(PriceSnapshotRepositoryInterface::class),
+        $c->get(TelegramRepositoryInterface::class),
+        $c->get(TelegramClientInterface::class),
+        $c->get(ClockInterface::class),
+        $app->basePath('storage'),
+        $app->basePath($config->string('logging.path', 'storage/logs'))
+    ));
+
+    $container->singleton(HealthMonitor::class, static fn (Container $c): HealthMonitor => new HealthMonitor(
+        $c->get(HealthChecker::class),
+        $c->get(OperationsRepositoryInterface::class),
+        $c->get(TelegramService::class),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(RunHealthChecksTask::class, static fn (Container $c): RunHealthChecksTask => new RunHealthChecksTask(
+        $c->get(HealthMonitor::class),
+        $c->get(LoggerInterface::class)
+    ));
+
+    $container->singleton(BackupService::class, static fn (Container $c): BackupService => new BackupService(
+        // The connection details come from config, and the password reaches
+        // mysqldump through MYSQL_PWD rather than the command line, where it
+        // would be visible in `ps` to every account on a shared host.
+        $config->array('database', []),
+        $app->basePath('storage/backups'),
+        $c->get(ClockInterface::class),
+        $c->get(LoggerInterface::class),
+        (int) $c->get(SettingsRepositoryInterface::class)->get('backup.keep', 7)
+    ));
+
+    $container->singleton(BackupDatabaseTask::class, static fn (Container $c): BackupDatabaseTask => new BackupDatabaseTask(
+        $c->get(BackupService::class),
+        $c->get(SettingsRepositoryInterface::class),
+        $c->get(LoggerInterface::class)
+    ));
+
     // ── Performance rollups (Phase 9) ────────────────────────────────────────
     // The calculator is stateless and pure, so one instance serves the live
     // dashboard and the nightly builder alike — which is the point: a single
@@ -661,13 +712,8 @@ return static function (Container $container, Config $config, Application $app):
     ));
 
     $container->singleton(HealthService::class, static fn (Container $c): HealthService => new HealthService(
-        $c->get(Database::class),
+        $c->get(HealthChecker::class),
         $c->get(OperationsRepositoryInterface::class),
-        $c->get(MarketReferenceRepositoryInterface::class),
-        $c->get(CandleRepositoryInterface::class),
-        $c->get(PriceSnapshotRepositoryInterface::class),
-        $c->get(ApiUsageService::class),
-        $c->get(TelegramBoardService::class),
         $c->get(ClockInterface::class)
     ));
 

@@ -127,6 +127,21 @@ Health checks for every component in document 01, §11, with the task-staleness 
 
 **Verify:** disabling a scheduled task raises a staleness warning within its expected window; a full restore from a nightly backup into an empty database is performed and confirmed working — not assumed (document 01, §12); the security review passes with no unresolved findings; a fresh installation succeeds following only the installation guide.
 
+**Delivered.** Ten component checks, transition-based alerting, nightly backups with a verified restore, the completed retention policy, `docs/05-SECURITY-REVIEW.md` and `docs/06-OPERATIONS.md`.
+
+All four verification criteria were executed, not asserted:
+
+1. **Staleness.** Disabling `market.price` moved the scheduler OK → WARNING naming the task; letting it go stale instead moved WARNING → CRITICAL with its age. Both transitions were observed through the real CLI.
+2. **Restore.** A real dump was restored into an empty database. Every table count matched the source (40 tables, 2,100 candles, 3 signals, 16 snapshots), then the application was pointed at the restored database and **signed into**, serving every page. A restore verified only by "the command exited zero" is not a verified restore.
+3. **Security review.** Three findings, all resolved in this phase — see below. Four risks are accepted and recorded with reasoning rather than left implicit.
+4. **Fresh install.** Followed start to finish using only `docs/06-OPERATIONS.md` Part 1, on an empty database: install, first administrator, `check`, sign-in, all twelve pages, and a `0600` backup.
+
+**Three security findings, all fixed:** backup dumps were world-readable (a dump holds every password hash and the whole audit trail — on shared hosting that is disclosure with no exploit required); the restore target was sanitised rather than validated (removing dangerous characters is a losing game; deciding what is allowed is not); and alerting would have fired on condition rather than on change, sending ~96 messages for one overnight outage and teaching the operator to mute the channel — which is worse than no alerting, because it manufactures false confidence.
+
+**A bug the fresh-install path caught:** on a first install with no cron entry yet, *every* task is overdue, and the scheduler's message listing all eleven overflowed `health_checks.message` — taking the health check down with a `PDOException` on the one install where it mattered most. The message now names four and counts the rest, and the repository truncates defensively.
+
+**One deliberate reading of the spec.** The criterion says disabling a task should raise a staleness *warning*. Treating a disabled task as *overdue* would page an operator for something they did on purpose, and an alert that fires for deliberate acts gets muted; ignoring it entirely means a forgotten "temporary" disable leaves the platform quietly not working. It is therefore reported by name, as a WARNING, distinct from overdue — visible without being loud.
+
 ---
 
 ## Phase 11 — Backtesting Harness *(recommended, ADR-04)*

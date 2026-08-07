@@ -50,6 +50,13 @@ return static function (Database $db): int {
         ['retention.api_usage_days', '90', 'int', 'retention', 'API usage log retention', 'Aggregated into performance snapshots before pruning.'],
         ['retention.task_runs_days', '90', 'int', 'retention', 'Task run retention', 'Operational forensics window.'],
         ['retention.system_logs_days', '90', 'int', 'retention', 'System log retention', 'Log files are retained separately and pruned on their own schedule.'],
+        ['retention.health_checks_days', '30', 'int', 'retention', 'Health check retention', 'Enough history to tell a new problem from a chronic one.'],
+        ['retention.login_attempts_days', '90', 'int', 'retention', 'Login attempt retention', 'Kept long enough to investigate a credential-stuffing attempt after the fact.'],
+        ['retention.telegram_sent_days', '90', 'int', 'retention', 'Sent message retention', 'DEAD messages are never pruned — they are the evidence of a delivery problem.'],
+
+        // Backups
+        ['backup.enabled', '1', 'bool', 'backup', 'Nightly backups', 'Disable only if the host already takes a verified database backup of its own.'],
+        ['backup.keep', '7', 'int', 'backup', 'Backups to keep', 'A count rather than an age: under an age policy an account that stopped backing up would quietly delete its way to nothing.'],
 
         // Health thresholds
         ['health.task_stale_multiplier', '3', 'int', 'health', 'Task staleness multiplier', 'A task is stale when its last success is older than this many times its cadence. This is what detects a cron that stopped silently.'],

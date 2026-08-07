@@ -25,6 +25,8 @@ The complete design is in [`docs/`](docs/):
 | [02 — Database Design](docs/02-DATABASE-DESIGN.md) | Full schema specification and retention policy |
 | [03 — Folder Structure](docs/03-FOLDER-STRUCTURE.md) | Directory layout and its rationale |
 | [04 — Delivery Roadmap](docs/04-DELIVERY-ROADMAP.md) | Eleven phases with verification steps |
+| [05 — Security Review](docs/05-SECURITY-REVIEW.md) | Findings, controls exercised, accepted risks |
+| [06 — Operations](docs/06-OPERATIONS.md) | Installation, deployment and the runbook |
 
 Start with document 00.
 

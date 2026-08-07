@@ -25,6 +25,8 @@ declare(strict_types=1);
 use GoldBot\Core\Application;
 use GoldBot\Core\Config;
 use GoldBot\Console\TaskDispatcher;
+use GoldBot\Services\Backup\BackupService;
+use GoldBot\Services\Health\HealthMonitor;
 use GoldBot\Services\Performance\SnapshotBuilder;
 use GoldBot\Core\Database;
 use GoldBot\Database\Migrator;
@@ -216,6 +218,107 @@ try {
             }
             break;
 
+        case 'backup:run':
+            /** @var BackupService $backups */
+            $backups = $container->get(BackupService::class);
+
+            $out('Backing up the database…');
+            $backup = $backups->create();
+            $removed = $backups->rotate();
+
+            $out(sprintf('  %s (%s bytes)', basename($backup['file']), number_format($backup['bytes'])));
+
+            if ($removed !== []) {
+                $out(sprintf('  Rotated out %d old backup(s).', count($removed)));
+            }
+            break;
+
+        case 'backup:list':
+            /** @var BackupService $backups */
+            $backups = $container->get(BackupService::class);
+            $files = $backups->list();
+
+            if ($files === []) {
+                $out('No backups yet. Run backup:run.');
+                break;
+            }
+
+            $out(sprintf('%d backup(s), newest first:', count($files)));
+
+            foreach ($files as $file) {
+                $out(sprintf(
+                    '  %-34s %10s  %s',
+                    $file['name'],
+                    number_format($file['bytes']),
+                    $file['at']->format('Y-m-d H:i:s')
+                ));
+            }
+            break;
+
+        case 'backup:restore':
+            /** @var BackupService $backups */
+            $backups = $container->get(BackupService::class);
+
+            $file = $argv[2] ?? '';
+            $target = $argv[3] ?? '';
+
+            if ($file === '' || $target === '') {
+                $err('Usage: php cron/run.php backup:restore <file.sql.gz> <target-database>');
+                $err('');
+                $err('The target is REQUIRED and has no default. Restoring is destructive,');
+                $err('and a command that defaults to the live database is an accident');
+                $err('waiting to be typed. Restore into a scratch database and verify it');
+                $err('before pointing anything at it.');
+                exit(1);
+            }
+
+            $out(sprintf('Restoring %s into %s…', basename($file), $target));
+            $restored = $backups->restore($file, $target);
+
+            $out(sprintf(
+                '  %d table(s) restored in %dms.',
+                $restored['tables'],
+                $restored['duration_ms']
+            ));
+            break;
+
+        case 'health:check':
+            /** @var HealthMonitor $monitor */
+            $monitor = $container->get(HealthMonitor::class);
+
+            // Alerting is off by default from the CLI: running this by hand to
+            // look at the output should not page anyone. Pass --alert to
+            // exercise the real path.
+            $result = $monitor->run(alert: in_array('--alert', $argv, true));
+
+            $out(sprintf('Overall: %s', $result['overall']->value));
+
+            foreach ($result['reports'] as $report) {
+                $out(sprintf(
+                    '  %-9s %-18s %s',
+                    $report->status->value,
+                    $report->component,
+                    $report->message
+                ));
+            }
+
+            foreach ($result['transitions'] as $transition) {
+                $out(sprintf(
+                    '  TRANSITION %s: %s → %s',
+                    $transition['component'],
+                    $transition['from'],
+                    $transition['to']
+                ));
+            }
+
+            // Non-zero when anything is degraded, so an operator can wire this
+            // into an external monitor — or a plain cPanel cron, which emails
+            // on a non-zero exit and gives alerting with no extra machinery.
+            if ($result['overall']->isDegraded()) {
+                exit(1);
+            }
+            break;
+
         case 'performance:rebuild':
             /** @var SnapshotBuilder $builder */
             $builder = $container->get(SnapshotBuilder::class);
@@ -245,8 +348,7 @@ try {
 
             if ($period === null) {
                 $err('Usage: php cron/run.php performance:show [DAILY|WEEKLY|MONTHLY|ALL_TIME]');
-                $exit = 1;
-                break;
+                exit(1);
             }
 
             $series = $snapshots->series($period, SnapshotScope::overall(), 30);

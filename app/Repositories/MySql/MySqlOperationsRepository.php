@@ -258,7 +258,12 @@ final class MySqlOperationsRepository implements OperationsRepositoryInterface
         $this->database->insert('health_checks', [
             'component'   => $component,
             'status'      => $status,
-            'message'     => $message,
+            // Truncated to the column width rather than trusted to fit. A
+            // message that overflows takes the whole health check down with a
+            // PDOException — losing the monitoring at exactly the moment it
+            // had something to say. Callers should keep messages short; this
+            // makes it impossible for one that does not to be fatal.
+            'message'     => $message === null ? null : mb_substr($message, 0, 255),
             'metrics'     => $metrics === null ? null : (json_encode($metrics, JSON_UNESCAPED_SLASHES) ?: null),
             'duration_ms' => $durationMs,
             'checked_at'  => $checkedAt->format('Y-m-d H:i:s.v'),
